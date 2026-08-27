@@ -42,3 +42,8 @@
 
 out/
 .vs/
+
+LoginServerValue.lua
+ClientValue.lua
+Bingo.cpp
+DBServerValue.lua
