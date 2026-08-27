@@ -67,6 +67,8 @@ public:
 	/// <returns>¹öÆÛ</returns>
 	std::vector<char>& GetBuffer() { return m_buffer; }
 
+	void clear() { m_buffer.clear(); };
+
 private:
 	void AddSize(uint16_t _size)
 	{
@@ -168,13 +170,14 @@ public:
 template <typename T>
 void Serialize(PacketWriter& _writer, const T& _packet)
 {
+	_writer.clear();
+
 	PacketHeader header;
 	header.m_size = 0;
 	header.m_ID = T::PACKET_ID;
 
 	_writer.Write(header.m_size);
 	_writer.Write(header.m_ID);
-
 	boost::pfr::for_each_field(_packet, [&_writer](const auto& field)
 		{
 			_writer.Write(field);

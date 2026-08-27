@@ -1,6 +1,7 @@
 #pragma once
 
 #include <string>
+#include "NetError.h"
 
 constexpr uint32_t HashPacketName(const char* str)
 {
@@ -14,7 +15,8 @@ constexpr uint32_t HashPacketName(const char* str)
 }
 
 #define DECLARE_PACKET(PacketName) \
-    static constexpr uint32_t PACKET_ID = HashPacketName(#PacketName);
+    static constexpr uint32_t PACKET_ID = HashPacketName(#PacketName); \
+	NET_ERROR m_netError;
 
 // ========================================================================
 
@@ -27,18 +29,48 @@ struct PacketHeader
 
 // ========================================================================
 
-struct LOGIN_PACKET_SEND
+struct LTD_ACCESS
 {
-	DECLARE_PACKET(LOGIN_PACKET_SEND)
+	DECLARE_PACKET(LTD_ACCESS)
+};
+
+struct DTL_ACCESS_SUCCESS
+{
+	DECLARE_PACKET(DTL_ACCESS_SUCCESS)
+};
+
+struct GTD_ACCESS
+{
+	DECLARE_PACKET(GTD_ACCESS)
+};
+
+struct CTL_RES_LOGIN
+{
+	DECLARE_PACKET(CTL_RES_LOGIN)
 	std::string m_ID;
 	std::string m_hashedPW;
 };
 
-struct LOGIN_PACKET_RECV
+struct LTC_ACK_LOGIN
 {
-	DECLARE_PACKET(LOGIN_PACKET_RECV)
+	DECLARE_PACKET(LTC_ACK_LOGIN)
 	bool m_isSuccess;
-	std::string m_failReason;
+};
+
+struct LTD_RES_LOGIN_DATA
+{
+	DECLARE_PACKET(LTD_RES_LOGIN_DATA)
+	std::string m_ID;
+	std::string m_hashedPW;
+};
+
+struct DTL_ACK_LOGIN_DATA
+{
+	DECLARE_PACKET(DTL_ACK_LOGIN_DATA)
+	std::string m_ID;
+	std::string m_hashedPW;
+	std::string m_saltedPW;
+	std::string m_salt;
 };
 
 #pragma pack(pop)

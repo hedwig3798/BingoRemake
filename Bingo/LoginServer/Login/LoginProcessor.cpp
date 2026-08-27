@@ -1,4 +1,6 @@
 #include "LoginProcessor.h"
+#include "Server.h"
+#include "Password.h"
 
 LoginProcessor::LoginProcessor(LuaHelper* _luaHelper)
 	: m_luaHelper(_luaHelper)
@@ -6,7 +8,6 @@ LoginProcessor::LoginProcessor(LuaHelper* _luaHelper)
 	, m_gameServerIP()
 	, m_gameServerPort()
 {
-
 }
 
 LoginProcessor::~LoginProcessor()
@@ -32,12 +33,25 @@ bool LoginProcessor::Process()
 
 		switch (header->m_ID)
 		{
-		case LOGIN_PACKET_SEND::PACKET_ID:
+		case CTL_RES_LOGIN::PACKET_ID:
 		{
-			LOGIN_PACKET_SEND dData;
+			CTL_RES_LOGIN dData;
 			m_reader.SetBuffer(data, sizeof(PacketHeader));
 			Deserialize(m_reader, dData);
-			_LOGIN_PACKET_SEND(session, std::move(dData));
+			_CTL_RES_LOGIN(session, std::move(dData));
+			break;
+		}
+		case DTL_ACCESS_SUCCESS::PACKET_ID:
+		{
+			std::cout << "데이터 베이스 접속 성공\n";
+			break;
+		}
+		case DTL_ACK_LOGIN_DATA::PACKET_ID:
+		{
+			DTL_ACK_LOGIN_DATA dData;
+			m_reader.SetBuffer(data, sizeof(PacketHeader));
+			Deserialize(m_reader, dData);
+			_DTL_ACK_LOGIN_DATA(std::move(dData));
 			break;
 		}
 		default:
@@ -58,13 +72,73 @@ void LoginProcessor::Init()
 {
 	m_gameServerIP = m_luaHelper->Get<std::string>("GameServerIP");
 	m_gameServerPort = m_luaHelper->Get<short>("GameServerPort");
+
+	m_DBServerIP = m_luaHelper->Get<std::string>("DBServerIP");
+	m_DBServerPort = m_luaHelper->Get<short>("DBServerPort");
 }
 
-void LoginProcessor::_LOGIN_PACKET_SEND(std::shared_ptr<Session> _session, LOGIN_PACKET_SEND&& _data)
+void LoginProcessor::ConnectServer(std::shared_ptr<Server> _server)
 {
-	std::cout << _data.m_ID << std::endl;
-	std::cout << _data.m_hashedPW << std::endl;
+	std::cout << "데이터 베이스 접속 시도\n";
 
+	m_dbSession = _server->ConnectServer(m_DBServerIP, m_DBServerPort);
+	m_dbSession->SendPacket<LTD_ACCESS>({});
+}
+
+std::string LoginProcessor::GetSaltedString(const std::string& _string, const std::string& _salt)
+{
+	std::string result = _string + _salt;
+	result = PW::HashSHA256S(result);
+
+	return result;
+}
+
+void LoginProcessor::_CTL_RES_LOGIN(std::shared_ptr<Session> _session, CTL_RES_LOGIN&& _data)
+{
+	std::string testid = "hedwig";
+	std::string testpw = PW::HashSHA256S("Joey3798@@@");
+
+	LTD_RES_LOGIN_DATA data;
+	data.m_ID = testid;
+	data.m_hashedPW = testpw;
+	data.m_netError = NET_ERROR::NET_OK;
+
+	m_sessionMap[testid] = _session;
+
+	m_dbSession->SendPacket<LTD_RES_LOGIN_DATA>(data);
 
 	return;
+}
+
+void LoginProcessor::_DTL_ACK_LOGIN_DATA(DTL_ACK_LOGIN_DATA&& _data)
+{
+	LTC_ACK_LOGIN result;
+
+	if (NET_ERROR::NET_OK != _data.m_netError)
+	{
+		std::cerr << "something worng\n";
+		return;
+	}
+
+	auto itr = m_sessionMap.find(_data.m_ID);
+	if (itr == m_sessionMap.end())
+	{
+		std::cerr << "cannot find user connection\n";
+		// 해당 세션 연결 끊기
+		return;
+	}
+
+	std::string salted = GetSaltedString(_data.m_hashedPW, _data.m_salt);
+
+	if (salted != _data.m_saltedPW)
+	{
+		result.m_isSuccess = false;
+		result.m_netError = NET_ERROR::PW_NOT_MATCH;
+		itr->second->SendPacket<LTC_ACK_LOGIN>(result);
+		return;
+	}
+
+	result.m_isSuccess = true;
+	result.m_netError = NET_ERROR::NET_OK;
+	itr->second->SendPacket<LTC_ACK_LOGIN>(result);
 }

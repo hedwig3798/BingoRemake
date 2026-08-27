@@ -47,3 +47,4 @@ LoginServerValue.lua
 ClientValue.lua
 Bingo.cpp
 DBServerValue.lua
+dbPassword.txt

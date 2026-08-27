@@ -41,6 +41,11 @@ void NetLayer::InitNetLayer()
 }
 
 
+void NetLayer::Process()
+{
+
+}
+
 void NetLayer::ConnectServer(const char* _host, const char* _port)
 {
 	addrinfo hints = { 0 };

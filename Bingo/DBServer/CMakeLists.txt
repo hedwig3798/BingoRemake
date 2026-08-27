@@ -1,14 +1,14 @@
 ﻿
 set(
     SOURCES
-        Login/loginMain.cpp
-        Login/LoginProcessor.cpp
+        DB/DBMain.cpp
+        DB/DBProcessor.cpp
 )
 
 set(
     HEADERS
-        Login/loginMain.h 
-        Login/LoginProcessor.h
+        DB/DBMain.h 
+        DB/DBProcessor.h
 )
 
 
@@ -26,10 +26,10 @@ source_group(
 source_group("Packet" FILES ${NETWORK})
 source_group("Server Common" FILES ${SERVER_COMMON_HEADER} ${SERVER_COMMON_SOURCE})
 source_group("Lua" FILES ${LUA_HELPER_HEADER} ${LUA_HELPER_SOURCE})
-add_executable (LoginServer ${ALL_SOURCES} ${NETWORK} ${SERVER_COMMON_HEADER} ${SERVER_COMMON_SOURCE} ${LUA_HELPER_HEADER} ${LUA_HELPER_SOURCE})
+add_executable (DBServer ${ALL_SOURCES} ${NETWORK} ${SERVER_COMMON_HEADER} ${SERVER_COMMON_SOURCE} ${LUA_HELPER_HEADER} ${LUA_HELPER_SOURCE})
 
 target_include_directories(
-    LoginServer 
+    DBServer 
         PRIVATE 
             ${HEADERS}
             ${CMAKE_SOURCE_DIR}/Lua
@@ -43,19 +43,18 @@ target_include_directories(
 find_package(Boost REQUIRED COMPONENTS asio)
 
 target_link_libraries(
-    LoginServer 
+    DBServer 
         PRIVATE 
             Boost::pfr
             Boost::asio
             PostgreSQL::PostgreSQL
             ${LUA_LIBRARIES}
-            OpenSSL::Crypto 
 )
 
 
 target_compile_definitions(
-    LoginServer
+    DBServer
         PRIVATE
-            SETTING_FILE_PATH="${CMAKE_SOURCE_DIR}/LoginServerValue.lua"
+            SETTING_FILE_PATH="${CMAKE_SOURCE_DIR}/DBServerValue.lua"
 )
 

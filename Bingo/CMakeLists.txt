@@ -14,6 +14,7 @@ set(
 	NETWORK
 		${CMAKE_CURRENT_SOURCE_DIR}/Packet/Packet.h
 		${CMAKE_CURRENT_SOURCE_DIR}/Packet/Serializer.h
+		${CMAKE_CURRENT_SOURCE_DIR}/Packet/NetError.h
 )
 
 set(
@@ -21,14 +22,12 @@ set(
 		${CMAKE_CURRENT_SOURCE_DIR}/ServerCommon/Server.h
 		${CMAKE_CURRENT_SOURCE_DIR}/ServerCommon/Session.h
 		${CMAKE_CURRENT_SOURCE_DIR}/ServerCommon/IProcessor.h
-		${CMAKE_CURRENT_SOURCE_DIR}/ServerCommon/DBServer.h
 )
 
 set(
 	SERVER_COMMON_SOURCE
 		${CMAKE_CURRENT_SOURCE_DIR}/ServerCommon/Server.cpp
 		${CMAKE_CURRENT_SOURCE_DIR}/ServerCommon/Session.cpp
-		${CMAKE_CURRENT_SOURCE_DIR}/ServerCommon/DBServer.cpp
 )
 
 set(
@@ -44,4 +43,5 @@ set(
 add_subdirectory ("Bingo")
 add_subdirectory ("GameServer")
 add_subdirectory ("LoginServer")
+add_subdirectory ("DBServer")
 add_subdirectory ("Client")

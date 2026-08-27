@@ -40,6 +40,8 @@ private:
 public:
 	void InitNetLayer();
 
+	void Process();
+
 	template <typename T>
 	bool Send(const T& _data)
 	{

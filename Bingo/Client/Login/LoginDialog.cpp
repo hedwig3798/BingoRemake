@@ -34,7 +34,7 @@ BOOL CLoginDialog::OnInitDialog()
 
 void CLoginDialog::OnBnClickedLoginButton()
 {
-	LOGIN_PACKET_SEND testPacket;
+	CTL_RES_LOGIN testPacket;
 	testPacket.m_ID = "testID";
 	testPacket.m_hashedPW = "testPW";
 	m_net.Send(testPacket);

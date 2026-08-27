@@ -1,7 +1,7 @@
 #include "Session.h"
 #include <iterator>
 
-Session::Session(boost::asio::ip::tcp::socket _socket, IProcessor* _processor)
+Session::Session(boost::asio::ip::tcp::socket _socket, std::shared_ptr<IProcessor> _processor)
 	: m_socket(std::move(_socket))
 	, m_ringBuffer(MAX_LENGHT)
 	, m_writePos(0)
@@ -18,6 +18,16 @@ Session::~Session()
 void Session::Start()
 {
 	RecvPacket();
+}
+
+void Session::SendPacket(std::vector<char> _buffer)
+{
+	{
+		std::lock_guard<std::mutex> lock(m_sendQMutex);
+		m_sendQ.push(std::move(_buffer));
+	}
+
+	DoAsyncSend();
 }
 
 void Session::RecvPacket()
@@ -46,11 +56,14 @@ void Session::RecvPacket()
 
 void Session::ProcessPacket()
 {
+	// 비동기 동작 중 소멸 방지
 	auto self(shared_from_this());
 
+	// 현재 읽은 위치
 	uint16_t readPos = 0;
 	while (true)
 	{
+		// 남은 바이트 수
 		uint16_t remainByte = m_writePos - readPos;
 
 		// 쌓인 데이터가 헤더보자 작으면 다시 수신
@@ -66,6 +79,7 @@ void Session::ProcessPacket()
 			break;
 		}
 
+		// 프로세서에게 메세지 전달
 		m_processor->AddMsg(
 			self
 			, std::vector<char>(
@@ -74,21 +88,64 @@ void Session::ProcessPacket()
 			)
 		);
 
+		// 읽은 위치 증가
 		readPos += header->m_size;
 	}
 
+	// 남은 데이터를 벡터 앞으로 이동
 	uint16_t leftover = m_writePos - readPos;
 	if (leftover > 0 && readPos > 0)
 	{
 		std::memmove(m_ringBuffer.data(), m_ringBuffer.data() + readPos, leftover);
 	}
 
+	// 읽어야 할 위치 동기화
 	m_writePos = leftover;
 }
 
-void Session::SendPacket(std::size_t _length)
+void Session::DoAsyncSend()
 {
-	// 비동기 콜백에서 객체가 살아있기 위함
+	// 비동기 동작 중 소멸 방지
 	auto self(shared_from_this());
+
+	// 외부 락
+	std::unique_lock<std::mutex> qlock(m_sendQMutex);
+
+	// 큐가 비어있으면 리턴
+	if (true == m_sendQ.empty())
+	{
+		return;
+	}
+
+	// 비동기 전송
+	boost::asio::async_write(
+		m_socket,
+		boost::asio::buffer(m_sendQ.front()),
+		[this, self](boost::system::error_code _ec, std::size_t _length)
+		{
+			// 에러 처리
+			if (_ec)
+			{
+				std::cout << "Send Error: " << _ec.message() << std::endl;
+				return;
+			}
+
+			// 내부 락
+			bool hasMore = false;
+			{
+				std::lock_guard<std::mutex> lock(m_sendQMutex);
+				m_sendQ.pop();
+				hasMore = !m_sendQ.empty();
+			}
+
+			// 더 보낼 내용이 있다면 재귀
+			if (hasMore)
+			{
+				DoAsyncSend();
+			}
+		}
+	);
+	// 외부 락 해제
+	qlock.unlock();
 }
 

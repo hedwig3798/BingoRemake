@@ -47,5 +47,11 @@ target_include_directories(
             ${LUABRIDGE3_INCLUDE_DIRS}
 )
 
-target_link_libraries(Client PRIVATE Boost::pfr ${LUA_LIBRARIES})
+target_link_libraries(
+    Client 
+        PRIVATE 
+            Boost::pfr 
+            ${LUA_LIBRARIES}
+            OpenSSL::Crypto 
+)
 

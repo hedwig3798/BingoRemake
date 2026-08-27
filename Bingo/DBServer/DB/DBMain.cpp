@@ -2,7 +2,7 @@
 #include <winsock2.h>
 
 #include "Server.h"
-#include "LoginProcessor.h"
+#include "DBProcessor.h"
 #include "luaHelper.h"
 #include <thread>
 
@@ -15,19 +15,21 @@ int main()
 
 	luahelper.ReadScript(SETTING_FILE_PATH);
 
-	std::cout << "Login Server Start\n";
+	std::cout << "DB Server Start\n";
 
-	std::shared_ptr<IProcessor> processor = std::make_shared<LoginProcessor>(&luahelper);
-	std::shared_ptr<Server> server = std::make_shared<Server>(luahelper.Get<short>("myPort"));
-	server->SetProcessor(processor);
+	Server server(luahelper.Get<short>("myPort"));
+
+	std::shared_ptr<IProcessor> processor = std::make_shared<DBProcessor>(&luahelper);
 	processor->Init();
+	server.SetProcessor(processor);
 
 	std::thread networkThread([&server]() 
 		{
-			server->Run();
+			server.Run();
 		});
 
-	processor->ConnectServer(server);
+
+
 	while (true)
 	{
 		processor->Process();
