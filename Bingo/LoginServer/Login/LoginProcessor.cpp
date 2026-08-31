@@ -95,15 +95,14 @@ std::string LoginProcessor::GetSaltedString(const std::string& _string, const st
 
 void LoginProcessor::_CTL_RES_LOGIN(std::shared_ptr<Session> _session, CTL_RES_LOGIN&& _data)
 {
-	std::string testid = "hedwig";
-	std::string testpw = PW::HashSHA256S("Joey3798@@@");
-
 	LTD_RES_LOGIN_DATA data;
-	data.m_ID = testid;
-	data.m_hashedPW = testpw;
+	data.m_ID = _data.m_ID;
+	data.m_hashedPW = _data.m_hashedPW;
 	data.m_netError = NET_ERROR::NET_OK;
 
-	m_sessionMap[testid] = _session;
+	std::cout << data.m_ID << " " << data.m_hashedPW << std::endl;
+
+	m_sessionMap[data.m_ID] = _session;
 
 	m_dbSession->SendPacket<LTD_RES_LOGIN_DATA>(data);
 
@@ -114,31 +113,45 @@ void LoginProcessor::_DTL_ACK_LOGIN_DATA(DTL_ACK_LOGIN_DATA&& _data)
 {
 	LTC_ACK_LOGIN result;
 
-	if (NET_ERROR::NET_OK != _data.m_netError)
-	{
-		std::cerr << "something worng\n";
-		return;
-	}
-
 	auto itr = m_sessionMap.find(_data.m_ID);
 	if (itr == m_sessionMap.end())
 	{
 		std::cerr << "cannot find user connection\n";
-		// 해당 세션 연결 끊기
 		return;
 	}
 
-	std::string salted = GetSaltedString(_data.m_hashedPW, _data.m_salt);
+	switch (_data.m_netError)
+	{
+	// 비밀 번호 확인
+	case NET_ERROR::NET_OK:
+	{
+		std::string salted = GetSaltedString(_data.m_hashedPW, _data.m_salt);
 
-	if (salted != _data.m_saltedPW)
+		if (salted != _data.m_saltedPW)
+		{
+			result.m_isSuccess = false;
+			result.m_netError = NET_ERROR::PW_NOT_MATCH;
+			itr->second->SendPacket<LTC_ACK_LOGIN>(result);
+			return;
+		}
+
+		result.m_isSuccess = true;
+		result.m_netError = NET_ERROR::NET_OK;
+		itr->second->SendPacket<LTC_ACK_LOGIN>(result);
+
+		// 세션 연결끊기
+
+		break;
+	}
+	default:
 	{
 		result.m_isSuccess = false;
-		result.m_netError = NET_ERROR::PW_NOT_MATCH;
+		result.m_netError = _data.m_netError;
 		itr->second->SendPacket<LTC_ACK_LOGIN>(result);
-		return;
+
+		break;
+	}
 	}
 
-	result.m_isSuccess = true;
-	result.m_netError = NET_ERROR::NET_OK;
-	itr->second->SendPacket<LTC_ACK_LOGIN>(result);
+
 }

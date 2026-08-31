@@ -7,5 +7,5 @@ class CLoginApp
 	: public CWinApp
 {
 public:
-	virtual BOOL InitInstance();
+	virtual BOOL InitInstance() override;
 };

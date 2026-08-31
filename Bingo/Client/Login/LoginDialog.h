@@ -11,13 +11,13 @@ public:
 
 	NetLayer m_net;
 
-	// 대화 상자 리소스 ID 매핑
-	enum {
-		IDD = IDD_LOGIN_DIALOG
-	};
+private:
+	CEdit* m_idInput;
+	CEdit* m_pwInput;
 
 public:
 	afx_msg void OnBnClickedLoginButton();
+	afx_msg LRESULT _LTC_ACK_LOGIN(WPARAM _wParam, LPARAM _lParam);
 
 protected:
 	virtual void DoDataExchange(CDataExchange* _pDX);

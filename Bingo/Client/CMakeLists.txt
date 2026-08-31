@@ -16,6 +16,15 @@ set(
         Login/LoginDialog.h 
 
         NetLayer/NetLayer.h 
+
+        MFCMassage/MassageDefine.h
+)
+
+set(
+    HEADERS_DIR
+        ./Login
+        ./NetLayer
+        ./MFCMassage
 )
 
 set(
@@ -45,6 +54,7 @@ target_include_directories(
             ${CMAKE_SOURCE_DIR}/Utils
             ${LUA_INCLUDE_DIR}
             ${LUABRIDGE3_INCLUDE_DIRS}
+            ${HEADERS_DIR}
 )
 
 target_link_libraries(

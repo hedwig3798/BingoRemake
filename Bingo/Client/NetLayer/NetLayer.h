@@ -8,10 +8,13 @@
 #include <mutex>
 #include <queue>
 #include <condition_variable>
+#include <afxdialogex.h>
 #include "Serializer.h"
 #include "Packet.h"
 
 #pragma comment(lib, "ws2_32.lib")
+
+#define MAX_LENGHT 65536
 
 class NetLayer
 {
@@ -30,17 +33,21 @@ private:
 
 	std::thread m_recvThread;
 	std::mutex m_recvLock;
-	std::queue<std::pair<uint32_t, std::vector<char>>> m_recvq;
+	std::queue<std::vector<char>> m_recvq;
+	std::vector<char> m_ringBuffer;
+	uint16_t m_writePos;
+
+	std::thread m_packetProccessor;
 
 	PacketReader m_reader;
 	std::vector<char> m_readBuffer;
 
 	bool m_endFlag;
 
-public:
-	void InitNetLayer();
+	CDialogEx* m_dialog;
 
-	void Process();
+public:
+	void InitNetLayer(CDialogEx* _dialog);
 
 	template <typename T>
 	bool Send(const T& _data)
@@ -58,4 +65,8 @@ private:
 
 	void SnedThread();
 	void RecvThread();
+	void PacketReader();
+	void ProcessPacket();
+
+	void BroadcastPacket();
 };

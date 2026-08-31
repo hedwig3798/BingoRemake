@@ -1,9 +1,13 @@
 #include "NetLayer.h"
+#include "MassageDefine.h"
 
 NetLayer::NetLayer()
 	: m_sock(0)
 	, m_reader()
-	, m_readBuffer(1024)
+	, m_readBuffer(65536)
+	, m_ringBuffer(65536)
+	, m_dialog(nullptr)
+	, m_writePos(0)
 {
 
 }
@@ -20,7 +24,7 @@ NetLayer::~NetLayer()
 	m_sendThread.join();
 }
 
-void NetLayer::InitNetLayer()
+void NetLayer::InitNetLayer(CDialogEx* _dialog)
 {
 	m_endFlag = false;
 
@@ -37,13 +41,10 @@ void NetLayer::InitNetLayer()
 	{
 		m_sendThread = std::thread(&NetLayer::SnedThread, this);
 		m_recvThread = std::thread(&NetLayer::RecvThread, this);
+		m_packetProccessor = std::thread(&NetLayer::BroadcastPacket, this);
 	}
-}
 
-
-void NetLayer::Process()
-{
-
+	m_dialog = _dialog;
 }
 
 void NetLayer::ConnectServer(const char* _host, const char* _port)
@@ -139,47 +140,108 @@ void NetLayer::SnedThread()
 
 void NetLayer::RecvThread()
 {
-	uint16_t recvLeft = 0;
-	std::vector<char> dataBuffer;
-	std::vector<char> headerBuffer(sizeof(PacketHeader));
-
-	uint16_t headerRecvLeft = sizeof(PacketHeader);
-	PacketHeader* headerData;
-
 	while (false == m_endFlag)
 	{
 		// 일단 받아오기
-		int recved = recv(m_sock, headerBuffer.data(), sizeof(PacketHeader), MSG_WAITALL);
-
+		int recved = recv(m_sock, m_ringBuffer.data() + m_writePos, m_ringBuffer.size() - m_writePos, 0);
+		
 		// 에러 있으면 스레드 종료
 		if (SOCKET_ERROR == recved)
 		{
+			int nErrorCode = WSAGetLastError();
 			// 나중에 처리하기
-			std::cerr << "something worng" << std::endl;
+			std::cerr << "something worng : " << nErrorCode << std::endl;
 			break;
 		}
-		if (sizeof(PacketHeader) != recved)
+		m_writePos += recved;
+		ProcessPacket();
+	}
+}
+
+void NetLayer::ProcessPacket()
+{
+	uint16_t readPos = 0;
+	while (true)
+	{
+		// 남은 바이트 수
+		uint16_t remainByte = m_writePos - readPos;
+
+		// 쌓인 데이터가 헤더보자 작으면 다시 수신
+		if (remainByte < sizeof(PacketHeader))
 		{
-			std::cerr << "header read fail" << std::endl;
-			continue;
+			break;
+		}
+		PacketHeader* header = reinterpret_cast<PacketHeader*>(m_ringBuffer.data() + readPos);
+
+		// 쌓인 데이터가 크기만큼 있어야 한다.
+		if (remainByte < header->m_size)
+		{
+			break;
 		}
 
-		headerData = reinterpret_cast<PacketHeader*>(headerBuffer.data());
-		headerData->m_size -= sizeof(PacketHeader);
-		dataBuffer.resize(headerData->m_size);
-
-		recved = recv(m_sock, dataBuffer.data(), headerData->m_size, MSG_WAITALL);
-		if (headerData->m_size != recved)
-		{
-			std::cerr << "data read fail" << std::endl;
-			continue;
-		}
 
 		{
 			std::unique_lock<std::mutex> lock(m_recvLock);
-			m_recvq.push({ headerData->m_ID, std::move(dataBuffer) });
+			m_recvq.push(
+				std::vector<char>(
+					std::make_move_iterator(m_ringBuffer.data() + readPos)
+					, std::make_move_iterator(m_ringBuffer.data() + readPos + header->m_size)
+				)
+			);
 		}
 
+		// 읽은 위치 증가
+		readPos += header->m_size;
+	}
+
+	// 남은 데이터를 벡터 앞으로 이동
+	uint16_t leftover = m_writePos - readPos;
+	if (leftover > 0 && readPos > 0)
+	{
+		std::memmove(m_ringBuffer.data(), m_ringBuffer.data() + readPos, leftover);
+	}
+
+	// 읽어야 할 위치 동기화
+	m_writePos = leftover;
+}
+
+void NetLayer::BroadcastPacket()
+{
+	{
+		std::unique_lock<std::mutex> lock(m_recvLock);
+		while (true)
+		{
+			if (false == lock.owns_lock())
+			{
+				lock.lock();
+			}
+
+			if (true == m_recvq.empty())
+			{
+				lock.unlock();
+				continue;
+			}
+
+			std::vector<char> packet = std::move(m_recvq.front());
+			m_recvq.pop();
+			lock.unlock();
+
+			PacketHeader* header = reinterpret_cast<PacketHeader*>(packet.data());
+			switch (header->m_ID)
+			{
+			case LTC_ACK_LOGIN::PACKET_ID:
+			{
+				std::cout << "recv packet\n";
+				LTC_ACK_LOGIN* ackData = new LTC_ACK_LOGIN();
+				m_reader.SetBuffer(packet, sizeof(PacketHeader));
+				Deserialize(m_reader, *ackData);
+				m_dialog->PostMessage(CM_LTC_ACK_LOGIN, (WPARAM)ackData);
+				break;
+			}
+			default:
+				break;
+			}
+		}
 	}
 }
 
