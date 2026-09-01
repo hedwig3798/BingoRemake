@@ -22,6 +22,15 @@ bool DBProcessor::Process()
 	while (true)
 	{
 		std::unique_lock<std::mutex> lock(m_qLock);
+		m_qcv.wait_for(
+			lock
+			, std::chrono::seconds(1)
+			, [this]() 
+			{ 
+				return !m_msgQ.empty(); 
+			}
+		);
+
 		if (true == m_msgQ.empty())
 		{
 			continue;
@@ -44,13 +53,13 @@ bool DBProcessor::Process()
 			_LTD_RES_LOGIN_DATA(session, std::move(dData));
 			break;
 		}
-		case LTD_ACCESS::PACKET_ID:
+		case LTD_RES_ACCESS::PACKET_ID:
 		{
 			m_loginSession = session;
-			m_loginSession->SendPacket<DTL_ACCESS_SUCCESS>({});
+			m_loginSession->SendPacket<DTA_ACK_ACCESS>({});
 			break;
 		}
-		case GTD_ACCESS::PACKET_ID:
+		case GTD_RES_ACCESS::PACKET_ID:
 		{
 			m_gameSession = session;
 			break;
@@ -65,8 +74,12 @@ bool DBProcessor::Process()
 
 void DBProcessor::AddMsg(std::shared_ptr<Session> _session, std::vector<char>&& _buffer)
 {
-	std::lock_guard<std::mutex> lock(m_qLock);
-	m_msgQ.push({ _session, std::move(_buffer) });
+	{
+		std::lock_guard<std::mutex> lock(m_qLock);
+		m_msgQ.push({ _session, std::move(_buffer) });
+	}
+
+	m_qcv.notify_one();
 }
 
 void DBProcessor::Init()

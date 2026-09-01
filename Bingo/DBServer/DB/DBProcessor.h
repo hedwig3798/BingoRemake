@@ -23,6 +23,7 @@ class DBProcessor
 private:
 	std::queue<std::pair<std::shared_ptr<Session>, std::vector<char>>> m_msgQ;
 	std::mutex m_qLock;
+	std::condition_variable m_qcv;
 
 	PacketReader m_reader;
 

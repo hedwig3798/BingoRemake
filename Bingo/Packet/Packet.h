@@ -16,7 +16,7 @@ constexpr uint32_t HashPacketName(const char* str)
 
 #define DECLARE_PACKET(PacketName) \
     static constexpr uint32_t PACKET_ID = HashPacketName(#PacketName); \
-	NET_ERROR m_netError;
+	NET_ERROR m_netError = NET_ERROR::NET_OK;
 
 // ========================================================================
 
@@ -28,20 +28,26 @@ struct PacketHeader
 };
 
 // ========================================================================
-
-struct LTD_ACCESS
+///
+/// 패킷 명명 규칙
+/// XTX : X 에서 X 로 보내는 패킷 / 단, A 는 모든 곳
+/// RES : 요청, 답 패킷이 오기를 기대하는 패킷
+/// ACK : RES 패킷에 대한 답
+/// NONE : 단순히 보내기만 하는 패킷
+///
+struct LTD_RES_ACCESS
 {
-	DECLARE_PACKET(LTD_ACCESS)
+	DECLARE_PACKET(LTD_RES_ACCESS)
 };
 
-struct DTL_ACCESS_SUCCESS
+struct DTA_ACK_ACCESS
 {
-	DECLARE_PACKET(DTL_ACCESS_SUCCESS)
+	DECLARE_PACKET(DTA_ACK_ACCESS)
 };
 
-struct GTD_ACCESS
+struct GTD_RES_ACCESS
 {
-	DECLARE_PACKET(GTD_ACCESS)
+	DECLARE_PACKET(GTD_RES_ACCESS)
 };
 
 struct CTL_RES_LOGIN
@@ -71,6 +77,18 @@ struct DTL_ACK_LOGIN_DATA
 	std::string m_hashedPW;
 	std::string m_saltedPW;
 	std::string m_salt;
+};
+
+struct CTL_RES_ID_AVAILABLITY
+{
+	DECLARE_PACKET(CTL_RES_ID_AVAILABLITY)
+	std::string m_ID;
+};
+
+struct LTC_ACK_ID_AVAILABLITY
+{
+	DECLARE_PACKET(LTC_ACK_ID_AVAILABLITY)
+	bool m_isAvailablity;
 };
 
 #pragma pack(pop)

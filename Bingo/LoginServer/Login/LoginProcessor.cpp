@@ -19,10 +19,20 @@ bool LoginProcessor::Process()
 	while (true)
 	{
 		std::unique_lock<std::mutex> lock(m_qLock);
+		m_qcv.wait_for(
+			lock
+			, std::chrono::seconds(1)
+			, [this]()
+			{
+				return !m_msgQ.empty();
+			}
+		);
+
 		if (true == m_msgQ.empty())
 		{
 			continue;
 		}
+
 
 		std::shared_ptr<Session> session = m_msgQ.front().first;
 		std::vector<char> data = std::move(m_msgQ.front().second);
@@ -41,7 +51,7 @@ bool LoginProcessor::Process()
 			_CTL_RES_LOGIN(session, std::move(dData));
 			break;
 		}
-		case DTL_ACCESS_SUCCESS::PACKET_ID:
+		case DTA_ACK_ACCESS::PACKET_ID:
 		{
 			std::cout << "데이터 베이스 접속 성공\n";
 			break;
@@ -64,8 +74,12 @@ bool LoginProcessor::Process()
 
 void LoginProcessor::AddMsg(std::shared_ptr<Session> _session, std::vector<char>&& _buffer)
 {
-	std::lock_guard<std::mutex> lock(m_qLock);
-	m_msgQ.push({ _session, std::move(_buffer) });
+	{
+		std::lock_guard<std::mutex> lock(m_qLock);
+		m_msgQ.push({ _session, std::move(_buffer) });
+	}
+
+	m_qcv.notify_one();
 }
 
 void LoginProcessor::Init()
@@ -82,7 +96,7 @@ void LoginProcessor::ConnectServer(std::shared_ptr<Server> _server)
 	std::cout << "데이터 베이스 접속 시도\n";
 
 	m_dbSession = _server->ConnectServer(m_DBServerIP, m_DBServerPort);
-	m_dbSession->SendPacket<LTD_ACCESS>({});
+	m_dbSession->SendPacket<LTD_RES_ACCESS>({});
 }
 
 std::string LoginProcessor::GetSaltedString(const std::string& _string, const std::string& _salt)
