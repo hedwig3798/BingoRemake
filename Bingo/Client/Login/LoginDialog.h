@@ -14,6 +14,7 @@ public:
 private:
 	CEdit* m_idInput;
 	CEdit* m_pwInput;
+	CButton* m_loginButton;
 
 public:
 	afx_msg void OnBnClickedLoginButton();

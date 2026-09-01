@@ -18,6 +18,12 @@ private:
 	std::vector<char> m_buffer;
 
 public:
+
+	PacketWriter()
+		: m_buffer()
+	{
+	}
+
 	/// <summary>
 	/// memcopy 가 가능한 타입에 대한 버퍼에 쓰기
 	/// </summary>

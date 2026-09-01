@@ -6,6 +6,7 @@ Session::Session(boost::asio::ip::tcp::socket _socket, std::shared_ptr<IProcesso
 	, m_ringBuffer(MAX_LENGHT)
 	, m_writePos(0)
 	, m_processor(_processor)
+	, m_writer()
 {
 
 }

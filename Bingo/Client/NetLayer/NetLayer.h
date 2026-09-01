@@ -9,6 +9,7 @@
 #include <queue>
 #include <condition_variable>
 #include <afxdialogex.h>
+#include <unordered_map>
 #include "Serializer.h"
 #include "Packet.h"
 
@@ -46,6 +47,8 @@ private:
 
 	CDialogEx* m_dialog;
 
+	std::unordered_map<uint32_t, uint32_t> m_waitingPacket;
+
 public:
 	void InitNetLayer(CDialogEx* _dialog);
 
@@ -56,6 +59,10 @@ public:
 		Serialize(m_writer, _data);
 		return Send(std::move(m_writer.GetBuffer()));
 	}
+
+	void SetWaitPacket(uint32_t _packetID, uint32_t _time);
+	bool IsWaitingPacket(uint32_t _packetID);
+	void RelaseWaiting(uint32_t _packetID);
 
 private:
 	void ConnectServer(const char* _host, const char* _port);

@@ -35,12 +35,14 @@ BOOL CLoginDialog::OnInitDialog()
 
 	m_idInput = (CEdit*)GetDlgItem(IDC_ID_INPUT);
 	m_pwInput = (CEdit*)GetDlgItem(IDC_PW_INPUT);
+	m_loginButton = (CButton*)GetDlgItem(IDC_LOGIN_BUTTON);
 
 	return TRUE;
 }
 
 void CLoginDialog::OnBnClickedLoginButton()
 {
+
 	if (nullptr == m_idInput
 		|| nullptr == m_pwInput)
 	{
@@ -48,27 +50,38 @@ void CLoginDialog::OnBnClickedLoginButton()
 		return;
 	}
 
-	CTL_RES_LOGIN testPacket;
+	// 답 패킷을 기다리고 있으면 무시
+	if (true == m_net.IsWaitingPacket(LTC_ACK_LOGIN::PACKET_ID))
+	{
+		return;
+	}
+	m_loginButton->EnableWindow(FALSE);
 	CString id;
 	m_idInput->GetWindowTextA(id);
-	testPacket.m_ID = CT2CA(id);
 
 	CString pw;
 	m_pwInput->GetWindowTextA(pw);
-	testPacket.m_hashedPW = PW::HashSHA256S(std::string(CT2CA(pw)));
 
-	if (true == testPacket.m_ID.empty()
-		|| true == testPacket.m_hashedPW.empty())
+	if ("" == id
+		|| "" == pw)
 	{
 		AfxMessageBox(_T("로그인 정보를 입력해주세요"), MB_ICONWARNING | MB_OK);
 		return;
 	}
 
-	m_net.Send(testPacket);
+	CTL_RES_LOGIN packetData;
+	packetData.m_ID = CT2CA(id);
+	packetData.m_hashedPW = PW::HashSHA256S(std::string(CT2CA(pw)));
+
+
+	m_net.Send(packetData);
+	m_net.SetWaitPacket(LTC_ACK_LOGIN::PACKET_ID, 60);
 }
 
 LRESULT CLoginDialog::_LTC_ACK_LOGIN(WPARAM _wParam, LPARAM _lParam)
 {
+	m_net.RelaseWaiting(LTC_ACK_LOGIN::PACKET_ID);
+
 	LTC_ACK_LOGIN* data = (LTC_ACK_LOGIN*)_wParam;
 	if (nullptr == data)
 	{
@@ -97,6 +110,7 @@ LRESULT CLoginDialog::_LTC_ACK_LOGIN(WPARAM _wParam, LPARAM _lParam)
 	}
 
 	delete data;
+	m_loginButton->EnableWindow(TRUE);
 
 	return 0;
 }

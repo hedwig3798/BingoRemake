@@ -96,6 +96,27 @@ bool NetLayer::Send(std::vector<char>&& _buffer)
 	return true;
 }
 
+void NetLayer::SetWaitPacket(uint32_t _packetID, uint32_t _time)
+{
+	if (false == IsWaitingPacket(_packetID))
+	{
+		m_waitingPacket[_packetID] = _time;
+	}
+}
+
+bool NetLayer::IsWaitingPacket(uint32_t _packetID)
+{
+	return m_waitingPacket.find(_packetID) != m_waitingPacket.end();
+}
+
+void NetLayer::RelaseWaiting(uint32_t _packetID)
+{
+	if (true == IsWaitingPacket(_packetID))
+	{
+		m_waitingPacket.erase(_packetID);
+	}
+}
+
 void NetLayer::SnedThread()
 {
 	while (false == m_endFlag)

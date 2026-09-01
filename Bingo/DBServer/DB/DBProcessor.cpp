@@ -163,7 +163,7 @@ void DBProcessor::_LTD_RES_LOGIN_DATA(std::shared_ptr<Session> _session, LTD_RES
 	int sendResult = PQsendQueryParams
 	(
 		apiConnection
-		, "SELECT id, password, salt FROM \"BingoUsers\" WHERE id = $1"
+		, "SELECT * FROM LoginFunction($1)"
 		, 1
 		, nullptr
 		, paramValues
@@ -233,8 +233,8 @@ void DBProcessor::_DTL_ACK_LOGIN_DATA(std::shared_ptr<Session> _session, DBConne
 					DTL_ACK_LOGIN_DATA data;
 					data.m_ID = _id;
 					data.m_hashedPW = _hashedPW;
-					data.m_saltedPW = PQgetvalue(res, 0, 1);
-					data.m_salt = PQgetvalue(res, 0, 2);
+					data.m_saltedPW = PQgetvalue(res, 0, 0);
+					data.m_salt = PQgetvalue(res, 0, 1);
 					data.m_netError = NET_ERROR::NET_OK;
 					m_loginSession->SendPacket<DTL_ACK_LOGIN_DATA>(data);
 				}
