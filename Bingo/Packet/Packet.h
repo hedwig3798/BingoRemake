@@ -68,6 +68,7 @@ struct LTD_RES_LOGIN_DATA
 	DECLARE_PACKET(LTD_RES_LOGIN_DATA)
 	std::string m_ID;
 	std::string m_hashedPW;
+	uint32_t m_sessionCount;
 };
 
 struct DTL_ACK_LOGIN_DATA
@@ -77,6 +78,7 @@ struct DTL_ACK_LOGIN_DATA
 	std::string m_hashedPW;
 	std::string m_saltedPW;
 	std::string m_salt;
+	uint32_t m_sessionCount;
 };
 
 struct CTL_RES_ID_AVAILABLITY
@@ -88,7 +90,21 @@ struct CTL_RES_ID_AVAILABLITY
 struct LTC_ACK_ID_AVAILABLITY
 {
 	DECLARE_PACKET(LTC_ACK_ID_AVAILABLITY)
-	bool m_isAvailablity;
+	bool m_isExist;
+};
+
+struct LTD_RES_ID_AVAILABLITY
+{
+	DECLARE_PACKET(LTD_RES_ID_AVAILABLITY)
+	std::string m_ID;
+	uint32_t m_sessionCount;
+};
+
+struct DTL_ACK_ID_AVAILABLITY
+{
+	DECLARE_PACKET(DTL_ACK_ID_AVAILABLITY)
+	bool m_isExist;
+	uint32_t m_sessionCount;
 };
 
 #pragma pack(pop)

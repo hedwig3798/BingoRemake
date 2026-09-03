@@ -22,9 +22,10 @@ NetLayer::~NetLayer()
 
 	m_recvThread.join();
 	m_sendThread.join();
+	m_packetProccessor.join();
 }
 
-void NetLayer::InitNetLayer(CDialogEx* _dialog)
+void NetLayer::InitNetLayer()
 {
 	m_endFlag = false;
 
@@ -43,8 +44,6 @@ void NetLayer::InitNetLayer(CDialogEx* _dialog)
 		m_recvThread = std::thread(&NetLayer::RecvThread, this);
 		m_packetProccessor = std::thread(&NetLayer::BroadcastPacket, this);
 	}
-
-	m_dialog = _dialog;
 }
 
 void NetLayer::ConnectServer(const char* _host, const char* _port)
@@ -188,7 +187,7 @@ void NetLayer::ProcessPacket()
 		uint16_t remainByte = m_writePos - readPos;
 
 		// 쌓인 데이터가 헤더보자 작으면 다시 수신
-		if (remainByte < sizeof(PacketHeader))
+		if (remainByte < sizeof(PacketHeader) || true == m_endFlag)
 		{
 			break;
 		}
@@ -232,6 +231,11 @@ void NetLayer::BroadcastPacket()
 		std::unique_lock<std::mutex> lock(m_recvLock);
 		while (true)
 		{
+			if (true == m_endFlag)
+			{
+				break;
+			}
+
 			if (false == lock.owns_lock())
 			{
 				lock.lock();
@@ -252,11 +256,19 @@ void NetLayer::BroadcastPacket()
 			{
 			case LTC_ACK_LOGIN::PACKET_ID:
 			{
-				std::cout << "recv packet\n";
 				LTC_ACK_LOGIN* ackData = new LTC_ACK_LOGIN();
 				m_reader.SetBuffer(packet, sizeof(PacketHeader));
 				Deserialize(m_reader, *ackData);
 				m_dialog->PostMessage(CM_LTC_ACK_LOGIN, (WPARAM)ackData);
+				break;
+			}
+			case LTC_ACK_ID_AVAILABLITY::PACKET_ID:
+			{
+				std::cout << "recv packet\n";
+				LTC_ACK_ID_AVAILABLITY* ackData = new LTC_ACK_ID_AVAILABLITY();
+				m_reader.SetBuffer(packet, sizeof(PacketHeader));
+				Deserialize(m_reader, *ackData);
+				m_dialog->PostMessage(CM_LTC_ACK_ID_AVAILABLITY, (WPARAM)ackData);
 				break;
 			}
 			default:

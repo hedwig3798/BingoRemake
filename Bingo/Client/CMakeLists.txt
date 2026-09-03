@@ -7,6 +7,7 @@ set(
         Login/LoginDialog.cpp 
 
         NetLayer/NetLayer.cpp 
+        SignIn/SignInDialog.cpp
 )
 
 set(
@@ -18,6 +19,8 @@ set(
         NetLayer/NetLayer.h 
 
         MFCMassage/MassageDefine.h
+
+        SignIn/SignInDialog.h
 )
 
 set(
@@ -25,6 +28,7 @@ set(
         ./Login
         ./NetLayer
         ./MFCMassage
+        ./SignIn
 )
 
 set(

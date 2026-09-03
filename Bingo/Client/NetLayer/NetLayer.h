@@ -50,7 +50,9 @@ private:
 	std::unordered_map<uint32_t, uint32_t> m_waitingPacket;
 
 public:
-	void InitNetLayer(CDialogEx* _dialog);
+	void InitNetLayer();
+
+	void SetDialog(CDialogEx* _dialog) { m_dialog = _dialog; };
 
 	template <typename T>
 	bool Send(const T& _data)

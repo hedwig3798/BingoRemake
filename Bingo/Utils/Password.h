@@ -8,7 +8,7 @@
 
 namespace PW
 {
-	std::wstring HashSHA256WS(const std::wstring& _str)
+	inline std::wstring HashSHA256WS(const std::wstring& _str)
 	{
 		unsigned char hash[EVP_MAX_MD_SIZE];
 		unsigned int len = 0;
@@ -34,7 +34,7 @@ namespace PW
 		return wss.str();
 	}
 
-	std::string HashSHA256S(const std::string& _str)
+	inline std::string HashSHA256S(const std::string& _str)
 	{
 		unsigned char hash[EVP_MAX_MD_SIZE];
 		unsigned int len = 0;
