@@ -50,45 +50,14 @@ bool LoginProcessor::Process()
 		{
 
 			/// 클라이언트 패킷 처리 구문
-
-		case CTL_RES_LOGIN::PACKET_ID:
-		{
 			DESERIALIZE_RES_PACKET(CTL_RES_LOGIN, session, data);
-			break;
-		}
-		case CTL_RES_ID_AVAILABLITY::PACKET_ID:
-		{
 			DESERIALIZE_RES_PACKET(CTL_RES_ID_AVAILABLITY, session, data);
-			break;
-		}
-		case CTL_RES_SING_UP::PACKET_ID:
-		{
 			DESERIALIZE_RES_PACKET(CTL_RES_SING_UP, session, data);
-			break;
-		}
 
-		/// 이 이하로 DB 패킷 처리
-
-		case DTA_ACK_ACCESS::PACKET_ID:
-		{
-			std::cout << "데이터 베이스 접속 성공\n";
-			break;
-		}
-		case DTL_ACK_LOGIN_DATA::PACKET_ID:
-		{
+			/// 이 이하로 DB 패킷 처리
 			DESERIALIZE_ACK_PACKET(DTL_ACK_LOGIN_DATA, data);
-			break;
-		}
-		case DTL_ACK_ID_AVAILABLITY::PACKET_ID:
-		{
 			DESERIALIZE_ACK_PACKET(DTL_ACK_ID_AVAILABLITY, data);
-			break;
-		}
-		case DTL_ACK_CREATE_USER_DATA::PACKET_ID:
-		{
 			DESERIALIZE_ACK_PACKET(DTL_ACK_CREATE_USER_DATA, data);
-			break;
-		}
 		default:
 			break;
 		}

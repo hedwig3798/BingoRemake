@@ -21,20 +21,29 @@ constexpr uint32_t HashPacketName(const char* str)
 // ========================================================================
 
 #define DESERIALIZE_RES_PACKET(PacketName, SESSION, DATA) \
-    do { \
-        PacketName packetData; \
-        m_reader.SetBuffer(DATA, sizeof(PacketHeader)); \
-        Deserialize(m_reader, packetData); \
-        _ ## PacketName(SESSION, std::move(packetData)); \
-    } while(0)
+case PacketName::PACKET_ID: \
+{ \
+do { \
+	\
+		PacketName packetData; \
+		m_reader.SetBuffer(DATA, sizeof(PacketHeader)); \
+		Deserialize(m_reader, packetData); \
+		_ ## PacketName(SESSION, std::move(packetData)); \
+} while (0); \
+break; \
+} 
 
 #define DESERIALIZE_ACK_PACKET(PacketName, DATA) \
+case PacketName::PACKET_ID: \
+{ \
     do { \
         PacketName packetData; \
         m_reader.SetBuffer(DATA, sizeof(PacketHeader)); \
         Deserialize(m_reader, packetData); \
         _ ## PacketName(std::move(packetData)); \
-    } while(0)
+    } while(0); \
+break; \
+}
 
 #pragma pack(push, 1)
 struct PacketHeader

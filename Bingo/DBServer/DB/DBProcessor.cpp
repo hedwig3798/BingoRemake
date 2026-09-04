@@ -25,9 +25,9 @@ bool DBProcessor::Process()
 		m_qcv.wait_for(
 			lock
 			, std::chrono::seconds(1)
-			, [this]() 
-			{ 
-				return !m_msgQ.empty(); 
+			, [this]()
+			{
+				return !m_msgQ.empty();
 			}
 		);
 
@@ -45,11 +45,6 @@ bool DBProcessor::Process()
 
 		switch (header->m_ID)
 		{
-		case LTD_RES_LOGIN_DATA::PACKET_ID:
-		{
-			DESERIALIZE_RES_PACKET(LTD_RES_LOGIN_DATA, session, data);
-			break;
-		}
 		case LTD_RES_ACCESS::PACKET_ID:
 		{
 			m_loginSession = session;
@@ -61,16 +56,11 @@ bool DBProcessor::Process()
 			m_gameSession = session;
 			break;
 		}
-		case LTD_RES_ID_AVAILABLITY::PACKET_ID:
-		{
-			DESERIALIZE_RES_PACKET(LTD_RES_ID_AVAILABLITY, session, data);
-			break;
-		}
-		case LTD_RES_CREATE_USER_DATA::PACKET_ID:
-		{
-			DESERIALIZE_RES_PACKET(LTD_RES_CREATE_USER_DATA, session, data);
-			break;
-		}
+
+		DESERIALIZE_RES_PACKET(LTD_RES_LOGIN_DATA, session, data);
+		DESERIALIZE_RES_PACKET(LTD_RES_ID_AVAILABLITY, session, data);
+		DESERIALIZE_RES_PACKET(LTD_RES_CREATE_USER_DATA, session, data);
+
 		default:
 			break;
 		}
@@ -125,7 +115,7 @@ void DBProcessor::Init()
 		m_connQ.push(connection);
 	}
 
-	m_dbIoThread = std::thread([this]() 
+	m_dbIoThread = std::thread([this]()
 		{
 			m_dbIoContext.run();
 		}
@@ -347,7 +337,7 @@ void DBProcessor::_DTL_ACK_ID_AVAILABLITY(std::shared_ptr<Session> _session, DBC
 				}
 
 				bool isExist = ('t' == val[0]);
-				
+
 				data.m_isExist = isExist;
 				data.m_requestID = _sesstionCount;
 				data.m_netError = NET_ERROR::NET_OK;
