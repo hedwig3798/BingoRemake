@@ -47,10 +47,7 @@ bool DBProcessor::Process()
 		{
 		case LTD_RES_LOGIN_DATA::PACKET_ID:
 		{
-			LTD_RES_LOGIN_DATA dData;
-			m_reader.SetBuffer(data, sizeof(PacketHeader));
-			Deserialize(m_reader, dData);
-			_LTD_RES_LOGIN_DATA(session, std::move(dData));
+			DESERIALIZE_RES_PACKET(LTD_RES_LOGIN_DATA, session, data);
 			break;
 		}
 		case LTD_RES_ACCESS::PACKET_ID:
@@ -66,10 +63,12 @@ bool DBProcessor::Process()
 		}
 		case LTD_RES_ID_AVAILABLITY::PACKET_ID:
 		{
-			LTD_RES_ID_AVAILABLITY dData;
-			m_reader.SetBuffer(data, sizeof(PacketHeader));
-			Deserialize(m_reader, dData);
-			_LTD_RES_ID_AVAILABLITY(session, std::move(dData));
+			DESERIALIZE_RES_PACKET(LTD_RES_ID_AVAILABLITY, session, data);
+			break;
+		}
+		case LTD_RES_CREATE_USER_DATA::PACKET_ID:
+		{
+			DESERIALIZE_RES_PACKET(LTD_RES_CREATE_USER_DATA, session, data);
 			break;
 		}
 		default:
@@ -192,7 +191,7 @@ void DBProcessor::_LTD_RES_LOGIN_DATA(std::shared_ptr<Session> _session, LTD_RES
 		return;
 	}
 
-	_DTL_ACK_LOGIN_DATA(_session, conn, _data.m_ID, _data.m_hashedPW, _data.m_sessionCount);
+	_DTL_ACK_LOGIN_DATA(_session, conn, _data.m_ID, _data.m_hashedPW, _data.m_requestID);
 }
 
 void DBProcessor::_DTL_ACK_LOGIN_DATA(std::shared_ptr<Session> _session, DBConnection* _conn, std::string _id, std::string _hashedPW, uint32_t _sesstionCount)
@@ -209,7 +208,7 @@ void DBProcessor::_DTL_ACK_LOGIN_DATA(std::shared_ptr<Session> _session, DBConne
 				std::cerr << "DB 메세지 수신 실패 : " << ec.message() << std::endl;
 				DTL_ACK_LOGIN_DATA data;
 				data.m_ID = _id;
-				data.m_sessionCount = _sesstionCount;
+				data.m_requestID = _sesstionCount;
 				data.m_netError = NET_ERROR::UNKNOWN_ERROR;
 				m_loginSession->SendPacket(data);
 				return;
@@ -220,7 +219,7 @@ void DBProcessor::_DTL_ACK_LOGIN_DATA(std::shared_ptr<Session> _session, DBConne
 				ReturnConnection(_conn);
 				DTL_ACK_LOGIN_DATA data;
 				data.m_ID = _id;
-				data.m_sessionCount = _sesstionCount;
+				data.m_requestID = _sesstionCount;
 				data.m_netError = NET_ERROR::UNKNOWN_ERROR;
 				m_loginSession->SendPacket(data);
 				return;
@@ -240,7 +239,7 @@ void DBProcessor::_DTL_ACK_LOGIN_DATA(std::shared_ptr<Session> _session, DBConne
 				{
 					DTL_ACK_LOGIN_DATA data;
 					data.m_ID = _id;
-					data.m_sessionCount = _sesstionCount;
+					data.m_requestID = _sesstionCount;
 					data.m_netError = NET_ERROR::NO_ID_EXITS;
 					m_loginSession->SendPacket(data);
 				}
@@ -251,7 +250,7 @@ void DBProcessor::_DTL_ACK_LOGIN_DATA(std::shared_ptr<Session> _session, DBConne
 					data.m_hashedPW = _hashedPW;
 					data.m_saltedPW = PQgetvalue(res, 0, 0);
 					data.m_salt = PQgetvalue(res, 0, 1);
-					data.m_sessionCount = _sesstionCount;
+					data.m_requestID = _sesstionCount;
 					data.m_netError = NET_ERROR::NET_OK;
 					m_loginSession->SendPacket(data);
 				}
@@ -265,7 +264,6 @@ void DBProcessor::_DTL_ACK_LOGIN_DATA(std::shared_ptr<Session> _session, DBConne
 
 void DBProcessor::_LTD_RES_ID_AVAILABLITY(std::shared_ptr<Session> _session, LTD_RES_ID_AVAILABLITY&& _data)
 {
-	std::cout << "_LTD_RES_ID_AVAILABLITY\n";
 
 	DBConnection* conn = GetConnection();
 	PGconn* apiConnection = conn->m_apiConnection;
@@ -284,12 +282,20 @@ void DBProcessor::_LTD_RES_ID_AVAILABLITY(std::shared_ptr<Session> _session, LTD
 		, 0
 	);
 
-	_DTL_ACK_ID_AVAILABLITY(_session, conn, _data.m_sessionCount);
+	if (0 == sendResult)
+	{
+		DTL_ACK_ID_AVAILABLITY result;
+		result.m_netError = NET_ERROR::DB_SEND_ERROR;
+		result.m_requestID = _data.m_requestID;
+		_session->SendPacket(result);
+		return;
+	}
+
+	_DTL_ACK_ID_AVAILABLITY(_session, conn, _data.m_requestID);
 }
 
 void DBProcessor::_DTL_ACK_ID_AVAILABLITY(std::shared_ptr<Session> _session, DBConnection* _conn, uint32_t _sesstionCount)
 {
-	std::cout << "_DTL_ACK_ID_AVAILABLITY\n";
 
 	PGconn* apiConnection = _conn->m_apiConnection;
 	auto& socket = _conn->m_socket;
@@ -303,7 +309,7 @@ void DBProcessor::_DTL_ACK_ID_AVAILABLITY(std::shared_ptr<Session> _session, DBC
 				std::cerr << "DB 메세지 수신 실패 : " << ec.message() << std::endl;
 				DTL_ACK_ID_AVAILABLITY data;
 				data.m_isExist = false;
-				data.m_sessionCount = _sesstionCount;
+				data.m_requestID = _sesstionCount;
 				data.m_netError = NET_ERROR::UNKNOWN_ERROR;
 				m_loginSession->SendPacket(data);
 				return;
@@ -314,7 +320,7 @@ void DBProcessor::_DTL_ACK_ID_AVAILABLITY(std::shared_ptr<Session> _session, DBC
 				ReturnConnection(_conn);
 				DTL_ACK_ID_AVAILABLITY data;
 				data.m_isExist = false;
-				data.m_sessionCount = _sesstionCount;
+				data.m_requestID = _sesstionCount;
 				data.m_netError = NET_ERROR::UNKNOWN_ERROR;
 				m_loginSession->SendPacket(data);
 				return;
@@ -333,7 +339,7 @@ void DBProcessor::_DTL_ACK_ID_AVAILABLITY(std::shared_ptr<Session> _session, DBC
 				char* val = PQgetvalue(res, 0, 0);
 				if (nullptr == val)
 				{
-					data.m_sessionCount = _sesstionCount;
+					data.m_requestID = _sesstionCount;
 					data.m_isExist = false;
 					data.m_netError = NET_ERROR::UNKNOWN_ERROR;
 					m_loginSession->SendPacket(data);
@@ -343,8 +349,109 @@ void DBProcessor::_DTL_ACK_ID_AVAILABLITY(std::shared_ptr<Session> _session, DBC
 				bool isExist = ('t' == val[0]);
 				
 				data.m_isExist = isExist;
-				data.m_sessionCount = _sesstionCount;
+				data.m_requestID = _sesstionCount;
 				data.m_netError = NET_ERROR::NET_OK;
+				m_loginSession->SendPacket(data);
+
+				PQclear(res);
+			}
+
+			ReturnConnection(_conn);
+		}
+	);
+}
+
+void DBProcessor::_LTD_RES_CREATE_USER_DATA(std::shared_ptr<Session> _session, LTD_RES_CREATE_USER_DATA&& _data)
+{
+	DBConnection* conn = GetConnection();
+	PGconn* apiConnection = conn->m_apiConnection;
+	auto& socket = conn->m_socket;
+
+	const char* paramValues[3] = { _data.m_ID.c_str(), _data.m_saltedPW.c_str(), _data.m_salt.c_str() };
+	int sendResult = PQsendQueryParams
+	(
+		apiConnection
+		, "SELECT * FROM AddNewAccount($1, $2, $3)"
+		, 3
+		, nullptr
+		, paramValues
+		, nullptr
+		, nullptr
+		, 0
+	);
+
+	if (0 == sendResult)
+	{
+		DTL_ACK_ID_AVAILABLITY result;
+		result.m_netError = NET_ERROR::DB_SEND_ERROR;
+		result.m_requestID = _data.m_requestID;
+		_session->SendPacket(result);
+		return;
+	}
+
+	_DTL_ACK_CREATE_USER_DATA(_session, conn, _data.m_requestID);
+}
+
+void DBProcessor::_DTL_ACK_CREATE_USER_DATA(std::shared_ptr<Session> _session, DBConnection* _conn, uint32_t _requestID)
+{
+	PGconn* apiConnection = _conn->m_apiConnection;
+	auto& socket = _conn->m_socket;
+
+	socket.async_wait(
+		boost::asio::socket_base::wait_read
+		, [this, _conn, _session, _requestID](const boost::system::error_code& ec)
+		{
+			if (ec)
+			{
+				std::cerr << "DB 메세지 수신 실패 : " << ec.message() << std::endl;
+				DTL_ACK_ID_AVAILABLITY data;
+				data.m_isExist = false;
+				data.m_requestID = _requestID;
+				data.m_netError = NET_ERROR::UNKNOWN_ERROR;
+				m_loginSession->SendPacket(data);
+				return;
+			}
+
+			if (PQconsumeInput(_conn->m_apiConnection) == 0)
+			{
+				ReturnConnection(_conn);
+				DTL_ACK_CREATE_USER_DATA data;
+				data.m_netError = NET_ERROR::UNKNOWN_ERROR;
+				m_loginSession->SendPacket(data);
+				return;
+			}
+
+			if (PQisBusy(_conn->m_apiConnection))
+			{
+				_DTL_ACK_CREATE_USER_DATA(_session, _conn, _requestID);
+				return;
+			}
+
+			PGresult* res = nullptr;
+			while ((res = PQgetResult(_conn->m_apiConnection)) != nullptr)
+			{
+				DTL_ACK_CREATE_USER_DATA data;
+				char* val = PQgetvalue(res, 0, 0);
+				if (nullptr == val)
+				{
+					data.m_requestID = _requestID;
+					data.m_netError = NET_ERROR::DB_QUERY_ERROR;
+					m_loginSession->SendPacket(data);
+					return;
+				}
+
+				bool isSuccess = ('t' == val[0]);
+
+				if (true == isSuccess)
+				{
+					data.m_requestID = _requestID;
+					data.m_netError = NET_ERROR::NET_OK;
+					m_loginSession->SendPacket(data);
+					return;
+				}
+
+				data.m_requestID = _requestID;
+				data.m_netError = NET_ERROR::ID_EXITS;
 				m_loginSession->SendPacket(data);
 
 				PQclear(res);

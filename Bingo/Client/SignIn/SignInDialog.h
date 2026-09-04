@@ -30,6 +30,7 @@ private:
 	afx_msg void OnSignInClick();
 	afx_msg void OnEnchangeIdInput();
 	afx_msg LRESULT _LTC_ACK_ID_AVAILABLITY(WPARAM _wParam, LPARAM _lParam);
+	afx_msg LRESULT _LTC_ACK_SING_UP(WPARAM _wParam, LPARAM _lParam);
 
 protected:
 	virtual void DoDataExchange(CDataExchange* _pDX) override;

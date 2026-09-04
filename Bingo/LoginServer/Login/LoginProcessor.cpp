@@ -1,14 +1,17 @@
 #include "LoginProcessor.h"
 #include "Server.h"
 #include "Password.h"
+#include "stringUtil.h"
 
-uint32_t LoginProcessor::m_sessionCount = 0;
+uint32_t LoginProcessor::m_requestID = 0;
 
 LoginProcessor::LoginProcessor(LuaHelper* _luaHelper)
 	: m_luaHelper(_luaHelper)
 	, m_reader()
 	, m_gameServerIP()
 	, m_gameServerPort()
+	, m_DBServerIP()
+	, m_DBServerPort()
 {
 }
 
@@ -45,22 +48,27 @@ bool LoginProcessor::Process()
 
 		switch (header->m_ID)
 		{
+
+			/// 클라이언트 패킷 처리 구문
+
 		case CTL_RES_LOGIN::PACKET_ID:
 		{
-			CTL_RES_LOGIN dData;
-			m_reader.SetBuffer(data, sizeof(PacketHeader));
-			Deserialize(m_reader, dData);
-			_CTL_RES_LOGIN(session, std::move(dData));
+			DESERIALIZE_RES_PACKET(CTL_RES_LOGIN, session, data);
 			break;
 		}
 		case CTL_RES_ID_AVAILABLITY::PACKET_ID:
 		{
-			CTL_RES_ID_AVAILABLITY dData;
-			m_reader.SetBuffer(data, sizeof(PacketHeader));
-			Deserialize(m_reader, dData);
-			_CTL_RES_ID_AVAILABLITY(session, std::move(dData));
+			DESERIALIZE_RES_PACKET(CTL_RES_ID_AVAILABLITY, session, data);
 			break;
 		}
+		case CTL_RES_SING_UP::PACKET_ID:
+		{
+			DESERIALIZE_RES_PACKET(CTL_RES_SING_UP, session, data);
+			break;
+		}
+
+		/// 이 이하로 DB 패킷 처리
+
 		case DTA_ACK_ACCESS::PACKET_ID:
 		{
 			std::cout << "데이터 베이스 접속 성공\n";
@@ -68,18 +76,17 @@ bool LoginProcessor::Process()
 		}
 		case DTL_ACK_LOGIN_DATA::PACKET_ID:
 		{
-			DTL_ACK_LOGIN_DATA dData;
-			m_reader.SetBuffer(data, sizeof(PacketHeader));
-			Deserialize(m_reader, dData);
-			_DTL_ACK_LOGIN_DATA(std::move(dData));
+			DESERIALIZE_ACK_PACKET(DTL_ACK_LOGIN_DATA, data);
 			break;
 		}
 		case DTL_ACK_ID_AVAILABLITY::PACKET_ID:
 		{
-			DTL_ACK_ID_AVAILABLITY dData;
-			m_reader.SetBuffer(data, sizeof(PacketHeader));
-			Deserialize(m_reader, dData);
-			_DTL_ACK_ID_AVAILABLITY(std::move(dData));
+			DESERIALIZE_ACK_PACKET(DTL_ACK_ID_AVAILABLITY, data);
+			break;
+		}
+		case DTL_ACK_CREATE_USER_DATA::PACKET_ID:
+		{
+			DESERIALIZE_ACK_PACKET(DTL_ACK_CREATE_USER_DATA, data);
 			break;
 		}
 		default:
@@ -131,11 +138,11 @@ void LoginProcessor::_CTL_RES_LOGIN(std::shared_ptr<Session> _session, CTL_RES_L
 	data.m_ID = _data.m_ID;
 	data.m_hashedPW = _data.m_hashedPW;
 	data.m_netError = NET_ERROR::NET_OK;
-	data.m_sessionCount = m_sessionCount++;
+	data.m_requestID = m_requestID++;
 
 	std::cout << data.m_ID << " " << data.m_hashedPW << std::endl;
 
-	m_sessionMap[data.m_sessionCount] = _session;
+	m_sessionMap[data.m_requestID] = _session;
 
 	m_dbSession->SendPacket<LTD_RES_LOGIN_DATA>(data);
 
@@ -144,22 +151,33 @@ void LoginProcessor::_CTL_RES_LOGIN(std::shared_ptr<Session> _session, CTL_RES_L
 
 void LoginProcessor::_CTL_RES_ID_AVAILABLITY(std::shared_ptr<Session> _session, CTL_RES_ID_AVAILABLITY&& _data)
 {
-	std::cout << "_CTL_RES_ID_AVAILABLITY\n";
 	LTD_RES_ID_AVAILABLITY result;
 	result.m_ID = _data.m_ID;
-	result.m_sessionCount = m_sessionCount++;
-	m_sessionMap[result.m_sessionCount] = _session;
+	result.m_requestID = m_requestID++;
+	m_sessionMap[result.m_requestID] = _session;
 
 	m_dbSession->SendPacket<LTD_RES_ID_AVAILABLITY>(result);
 
 	return;
 }
 
+void LoginProcessor::_CTL_RES_SING_UP(std::shared_ptr<Session> _session, CTL_RES_SING_UP&& _data)
+{
+	LTD_RES_CREATE_USER_DATA result;
+	result.m_ID = _data.m_ID;
+	result.m_salt = STRING_UTILS::GenerateRandomString(64);
+	result.m_saltedPW = PW::HashSHA256S(_data.m_hashedPW + result.m_salt);
+	result.m_requestID = m_requestID++;
+	m_sessionMap[result.m_requestID] = _session;
+
+	m_dbSession->SendPacket(result);
+}
+
 void LoginProcessor::_DTL_ACK_LOGIN_DATA(DTL_ACK_LOGIN_DATA&& _data)
 {
 	LTC_ACK_LOGIN result;
 
-	auto itr = m_sessionMap.find(_data.m_sessionCount);
+	auto itr = m_sessionMap.find(_data.m_requestID);
 	if (itr == m_sessionMap.end())
 	{
 		std::cerr << "cannot find user connection\n";
@@ -168,7 +186,7 @@ void LoginProcessor::_DTL_ACK_LOGIN_DATA(DTL_ACK_LOGIN_DATA&& _data)
 
 	switch (_data.m_netError)
 	{
-	// 비밀 번호 확인
+		// 비밀 번호 확인
 	case NET_ERROR::NET_OK:
 	{
 		std::string salted = GetSaltedString(_data.m_hashedPW, _data.m_salt);
@@ -202,11 +220,9 @@ void LoginProcessor::_DTL_ACK_LOGIN_DATA(DTL_ACK_LOGIN_DATA&& _data)
 
 void LoginProcessor::_DTL_ACK_ID_AVAILABLITY(DTL_ACK_ID_AVAILABLITY&& _data)
 {
-	std::cout << "_DTL_ACK_ID_AVAILABLITY\n";
-
 	LTC_ACK_ID_AVAILABLITY result;
 
-	auto itr = m_sessionMap.find(_data.m_sessionCount);
+	auto itr = m_sessionMap.find(_data.m_requestID);
 	if (itr == m_sessionMap.end())
 	{
 		std::cerr << "cannot find user connection\n";
@@ -230,4 +246,19 @@ void LoginProcessor::_DTL_ACK_ID_AVAILABLITY(DTL_ACK_ID_AVAILABLITY&& _data)
 		break;
 	}
 	}
+}
+
+void LoginProcessor::_DTL_ACK_CREATE_USER_DATA(DTL_ACK_CREATE_USER_DATA&& _data)
+{
+	LTC_ACK_SING_UP result;
+
+	auto itr = m_sessionMap.find(_data.m_requestID);
+	if (itr == m_sessionMap.end())
+	{
+		std::cerr << "cannot find user connection\n";
+		return;
+	}
+
+	result.m_netError = _data.m_netError;
+	itr->second->SendPacket(result);
 }

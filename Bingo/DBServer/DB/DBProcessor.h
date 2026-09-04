@@ -64,4 +64,7 @@ private:
 
 	void _LTD_RES_ID_AVAILABLITY(std::shared_ptr<Session> _session, LTD_RES_ID_AVAILABLITY&& _data);
 	void _DTL_ACK_ID_AVAILABLITY(std::shared_ptr<Session> _session, DBConnection* _conn, uint32_t _sesstionCount);
+
+	void _LTD_RES_CREATE_USER_DATA(std::shared_ptr<Session> _session, LTD_RES_CREATE_USER_DATA&& _data);
+	void _DTL_ACK_CREATE_USER_DATA(std::shared_ptr<Session> _session, DBConnection* _conn, uint32_t _sesstionCount);
 };

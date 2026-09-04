@@ -264,11 +264,18 @@ void NetLayer::BroadcastPacket()
 			}
 			case LTC_ACK_ID_AVAILABLITY::PACKET_ID:
 			{
-				std::cout << "recv packet\n";
 				LTC_ACK_ID_AVAILABLITY* ackData = new LTC_ACK_ID_AVAILABLITY();
 				m_reader.SetBuffer(packet, sizeof(PacketHeader));
 				Deserialize(m_reader, *ackData);
 				m_dialog->PostMessage(CM_LTC_ACK_ID_AVAILABLITY, (WPARAM)ackData);
+				break;
+			}
+			case LTC_ACK_SING_UP::PACKET_ID:
+			{
+				LTC_ACK_SING_UP* ackData = new LTC_ACK_SING_UP();
+				m_reader.SetBuffer(packet, sizeof(PacketHeader));
+				Deserialize(m_reader, *ackData);
+				m_dialog->PostMessage(CM_LTC_ACK_SING_UP, (WPARAM)ackData);
 				break;
 			}
 			default:

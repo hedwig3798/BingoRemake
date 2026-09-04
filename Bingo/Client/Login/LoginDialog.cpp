@@ -131,6 +131,6 @@ LRESULT CLoginDialog::_LTC_ACK_LOGIN(WPARAM _wParam, LPARAM _lParam)
 
 BEGIN_MESSAGE_MAP(CLoginDialog, CDialogEx)
 	ON_BN_CLICKED(IDC_LOGIN_BUTTON, &CLoginDialog::OnBnClickedLoginButton)
-	ON_BN_CLICKED(IDC_SIGNIN_BUTTON, &CLoginDialog::OnBnClickedCreateAccountButton)
+	ON_BN_CLICKED(IDC_SIGN_UP_BUTTON, &CLoginDialog::OnBnClickedCreateAccountButton)
 	ON_MESSAGE(CM_LTC_ACK_LOGIN, &CLoginDialog::_LTC_ACK_LOGIN)
 END_MESSAGE_MAP()

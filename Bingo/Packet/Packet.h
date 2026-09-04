@@ -20,6 +20,22 @@ constexpr uint32_t HashPacketName(const char* str)
 
 // ========================================================================
 
+#define DESERIALIZE_RES_PACKET(PacketName, SESSION, DATA) \
+    do { \
+        PacketName packetData; \
+        m_reader.SetBuffer(DATA, sizeof(PacketHeader)); \
+        Deserialize(m_reader, packetData); \
+        _ ## PacketName(SESSION, std::move(packetData)); \
+    } while(0)
+
+#define DESERIALIZE_ACK_PACKET(PacketName, DATA) \
+    do { \
+        PacketName packetData; \
+        m_reader.SetBuffer(DATA, sizeof(PacketHeader)); \
+        Deserialize(m_reader, packetData); \
+        _ ## PacketName(std::move(packetData)); \
+    } while(0)
+
 #pragma pack(push, 1)
 struct PacketHeader
 {
@@ -68,7 +84,7 @@ struct LTD_RES_LOGIN_DATA
 	DECLARE_PACKET(LTD_RES_LOGIN_DATA)
 	std::string m_ID;
 	std::string m_hashedPW;
-	uint32_t m_sessionCount;
+	uint32_t m_requestID;
 };
 
 struct DTL_ACK_LOGIN_DATA
@@ -78,7 +94,7 @@ struct DTL_ACK_LOGIN_DATA
 	std::string m_hashedPW;
 	std::string m_saltedPW;
 	std::string m_salt;
-	uint32_t m_sessionCount;
+	uint32_t m_requestID;
 };
 
 struct CTL_RES_ID_AVAILABLITY
@@ -97,14 +113,41 @@ struct LTD_RES_ID_AVAILABLITY
 {
 	DECLARE_PACKET(LTD_RES_ID_AVAILABLITY)
 	std::string m_ID;
-	uint32_t m_sessionCount;
+	uint32_t m_requestID;
 };
 
 struct DTL_ACK_ID_AVAILABLITY
 {
 	DECLARE_PACKET(DTL_ACK_ID_AVAILABLITY)
 	bool m_isExist;
-	uint32_t m_sessionCount;
+	uint32_t m_requestID;
+};
+
+struct CTL_RES_SING_UP
+{
+	DECLARE_PACKET(CTL_RES_SING_UP)
+	std::string m_ID;
+	std::string m_hashedPW;
+};
+
+struct LTC_ACK_SING_UP
+{
+	DECLARE_PACKET(LTC_ACK_SING_UP)
+};
+
+struct LTD_RES_CREATE_USER_DATA
+{
+	DECLARE_PACKET(LTD_RES_CREATE_USER_DATA)
+	std::string m_ID;
+	std::string m_saltedPW;
+	std::string m_salt;
+	uint32_t m_requestID;
+};
+
+struct DTL_ACK_CREATE_USER_DATA
+{
+	DECLARE_PACKET(DTL_ACK_CREATE_USER_DATA)
+	uint32_t m_requestID;
 };
 
 #pragma pack(pop)

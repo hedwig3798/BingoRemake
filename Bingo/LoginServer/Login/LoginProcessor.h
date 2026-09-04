@@ -32,7 +32,7 @@ private:
 	std::shared_ptr<Session> m_dbSession;
 
 	std::unordered_map<uint32_t, std::shared_ptr<Session>> m_sessionMap;
-	static uint32_t m_sessionCount;
+	static uint32_t m_requestID;
 
 public:
 	LoginProcessor(LuaHelper* _luaHelper);
@@ -52,6 +52,10 @@ private:
 	/// 여기서 부터 패킷 처리 함수
 	void _CTL_RES_LOGIN(std::shared_ptr<Session> _session, CTL_RES_LOGIN&& _data);
 	void _CTL_RES_ID_AVAILABLITY(std::shared_ptr<Session> _session, CTL_RES_ID_AVAILABLITY&& _data);
+	void _CTL_RES_SING_UP(std::shared_ptr<Session> _session, CTL_RES_SING_UP&& _data);
+
+
 	void _DTL_ACK_LOGIN_DATA(DTL_ACK_LOGIN_DATA&& _data);
 	void _DTL_ACK_ID_AVAILABLITY(DTL_ACK_ID_AVAILABLITY&& _data);
+	void _DTL_ACK_CREATE_USER_DATA(DTL_ACK_CREATE_USER_DATA&& _data);
 };
