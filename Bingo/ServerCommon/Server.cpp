@@ -49,5 +49,4 @@ void Server::Accept()
 			Accept();
 		}
 	);
-
 }

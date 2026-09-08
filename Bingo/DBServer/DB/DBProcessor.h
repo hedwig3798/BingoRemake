@@ -56,15 +56,56 @@ private:
 	void ReturnConnection(DBConnection* conn);
 	DBConnection* GetConnection();
 
+	bool SendQuery(DBConnection* _conn, const char* _query, int _nParams, const char* const* _paramValues);
+
+	template <typename SuccessCallback, typename ErrorCallback, typename RetryCallback>
+	void WaitDBResult(DBConnection* _conn, SuccessCallback _OnSuccess, ErrorCallback _OnError, RetryCallback _OnRetry)
+	{
+		_conn->m_socket.async_wait(
+			boost::asio::socket_base::wait_read,
+			[this, _conn, _OnSuccess, _OnError, _OnRetry](const boost::system::error_code& ec)
+			{
+				if (ec)
+				{
+					std::cerr << "DB 메세지 수신 실패 : " << ec.message() << std::endl;
+					_OnError();
+					return;
+				}
+
+				if (PQconsumeInput(_conn->m_apiConnection) == 0)
+				{
+					ReturnConnection(_conn);
+					_OnError();
+					return;
+				}
+
+				if (PQisBusy(_conn->m_apiConnection))
+				{
+					_OnRetry();
+					return;
+				}
+
+				PGresult* res = nullptr;
+				while ((res = PQgetResult(_conn->m_apiConnection)) != nullptr)
+				{
+					_OnSuccess(res);
+					PQclear(res);
+				}
+
+				ReturnConnection(_conn);
+			}
+		);
+	}
+
 private:
 
 	/// 여기서 부터 패킷 처리 함수
-	void _LTD_RES_LOGIN_DATA(std::shared_ptr<Session> _session, LTD_RES_LOGIN_DATA&& _data);
-	void _DTL_ACK_LOGIN_DATA(std::shared_ptr<Session> _session, DBConnection* _conn, std::string _id, std::string _hashedPW, uint32_t _sesstionCount);
+	void _LTD_RES_LOGIN_DATA(LTD_RES_LOGIN_DATA&& _data);
+	void _DTL_ACK_LOGIN_DATA(DBConnection* _conn, std::string _id, std::string _hashedPW, uint32_t _sesstionCount);
 
-	void _LTD_RES_ID_AVAILABLITY(std::shared_ptr<Session> _session, LTD_RES_ID_AVAILABLITY&& _data);
-	void _DTL_ACK_ID_AVAILABLITY(std::shared_ptr<Session> _session, DBConnection* _conn, uint32_t _sesstionCount);
+	void _LTD_RES_ID_AVAILABLITY(LTD_RES_ID_AVAILABLITY&& _data);
+	void _DTL_ACK_ID_AVAILABLITY(DBConnection* _conn, uint32_t _sesstionCount);
 
-	void _LTD_RES_CREATE_USER_DATA(std::shared_ptr<Session> _session, LTD_RES_CREATE_USER_DATA&& _data);
-	void _DTL_ACK_CREATE_USER_DATA(std::shared_ptr<Session> _session, DBConnection* _conn, uint32_t _sesstionCount);
+	void _LTD_RES_CREATE_USER_DATA(LTD_RES_CREATE_USER_DATA&& _data);
+	void _DTL_ACK_CREATE_USER_DATA(DBConnection* _conn, uint32_t _sesstionCount);
 };

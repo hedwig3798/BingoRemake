@@ -20,6 +20,19 @@ constexpr uint32_t HashPacketName(const char* str)
 
 // ========================================================================
 
+#define DESERIALIZE_DB_RES_PACKET(PacketName, DATA) \
+case PacketName::PACKET_ID: \
+{ \
+do { \
+	\
+		PacketName packetData; \
+		m_reader.SetBuffer(DATA, sizeof(PacketHeader)); \
+		Deserialize(m_reader, packetData); \
+		_ ## PacketName(std::move(packetData)); \
+} while (0); \
+break; \
+} 
+
 #define DESERIALIZE_RES_PACKET(PacketName, SESSION, DATA) \
 case PacketName::PACKET_ID: \
 { \
