@@ -43,6 +43,7 @@ void NetLayer::InitNetLayer()
 		m_sendThread = std::thread(&NetLayer::SnedThread, this);
 		m_recvThread = std::thread(&NetLayer::RecvThread, this);
 		m_packetProccessor = std::thread(&NetLayer::BroadcastPacket, this);
+		m_tickThread = std::thread(&NetLayer::Tick, this);
 	}
 }
 

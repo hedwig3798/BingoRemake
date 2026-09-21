@@ -40,6 +40,7 @@ private:
 	uint16_t m_writePos;
 
 	std::thread m_packetProccessor;
+	std::thread m_tickThread;
 
 	PacketReader m_reader;
 	std::vector<char> m_readBuffer;
