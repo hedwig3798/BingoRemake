@@ -10,6 +10,7 @@
 #include <condition_variable>
 #include <afxdialogex.h>
 #include <unordered_map>
+#include <chrono>
 #include "Serializer.h"
 #include "Packet.h"
 
@@ -78,4 +79,5 @@ private:
 	void ProcessPacket();
 
 	void BroadcastPacket();
+	void Tick();
 };

@@ -50,7 +50,8 @@ public:
 	virtual bool Process() override;
 	virtual void AddMsg(std::shared_ptr<Session> _session, std::vector<char>&& _buffer) override;
 	virtual void Init() override;
-	virtual void ConnectServer(std::shared_ptr<Server> _server) override;
+	virtual void ConnectServer() override;
+	virtual void Tick() override;
 
 private:
 	void ReturnConnection(DBConnection* conn);

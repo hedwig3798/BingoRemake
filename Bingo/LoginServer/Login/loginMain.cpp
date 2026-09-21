@@ -17,8 +17,8 @@ int main()
 
 	std::cout << "Login Server Start\n";
 
-	std::shared_ptr<IProcessor> processor = std::make_shared<LoginProcessor>(&luahelper);
 	std::shared_ptr<Server> server = std::make_shared<Server>(luahelper.Get<short>("myPort"));
+	std::shared_ptr<IProcessor> processor = std::make_shared<LoginProcessor>(&luahelper, server);
 	server->SetProcessor(processor);
 	processor->Init();
 
@@ -27,7 +27,7 @@ int main()
 			server->Run();
 		});
 
-	processor->ConnectServer(server);
+	processor->ConnectServer();
 	while (true)
 	{
 		processor->Process();

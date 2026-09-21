@@ -5,13 +5,14 @@
 
 uint32_t LoginProcessor::m_requestID = 0;
 
-LoginProcessor::LoginProcessor(LuaHelper* _luaHelper)
+LoginProcessor::LoginProcessor(LuaHelper* _luaHelper, std::shared_ptr<Server> _server)
 	: m_luaHelper(_luaHelper)
 	, m_reader()
 	, m_gameServerIP()
 	, m_gameServerPort()
 	, m_DBServerIP()
 	, m_DBServerPort()
+	, m_server(_server)
 {
 }
 
@@ -39,16 +40,20 @@ bool LoginProcessor::Process()
 		}
 
 
-		std::shared_ptr<Session> session = m_msgQ.front().first;
+		std::weak_ptr<Session> session = m_msgQ.front().first;
 		std::vector<char> data = std::move(m_msgQ.front().second);
 		m_msgQ.pop();
 		lock.unlock();
+
+		if (0 >= data.size())
+		{
+			continue;
+		}
 
 		PacketHeader* header = reinterpret_cast<PacketHeader*>(data.data());
 
 		switch (header->m_ID)
 		{
-
 			/// 클라이언트 패킷 처리 구문
 			DESERIALIZE_RES_PACKET(CTL_RES_LOGIN, session, data);
 			DESERIALIZE_RES_PACKET(CTL_RES_ID_AVAILABLITY, session, data);
@@ -85,12 +90,17 @@ void LoginProcessor::Init()
 	m_DBServerPort = m_luaHelper->Get<short>("DBServerPort");
 }
 
-void LoginProcessor::ConnectServer(std::shared_ptr<Server> _server)
+void LoginProcessor::ConnectServer()
 {
 	std::cout << "데이터 베이스 접속 시도\n";
 
-	m_dbSession = _server->ConnectServer(m_DBServerIP, m_DBServerPort);
+	m_dbSession = m_server->ConnectServer(m_DBServerIP, m_DBServerPort);
 	m_dbSession->SendPacket<LTD_RES_ACCESS>({});
+}
+
+void LoginProcessor::Tick()
+{
+
 }
 
 std::string LoginProcessor::GetSaltedString(const std::string& _string, const std::string& _salt)
@@ -101,7 +111,7 @@ std::string LoginProcessor::GetSaltedString(const std::string& _string, const st
 	return result;
 }
 
-void LoginProcessor::_CTL_RES_LOGIN(std::shared_ptr<Session> _session, CTL_RES_LOGIN&& _data)
+void LoginProcessor::_CTL_RES_LOGIN(std::weak_ptr<Session> _session, CTL_RES_LOGIN&& _data)
 {
 	LTD_RES_LOGIN_DATA data;
 	data.m_ID = _data.m_ID;
@@ -118,7 +128,7 @@ void LoginProcessor::_CTL_RES_LOGIN(std::shared_ptr<Session> _session, CTL_RES_L
 	return;
 }
 
-void LoginProcessor::_CTL_RES_ID_AVAILABLITY(std::shared_ptr<Session> _session, CTL_RES_ID_AVAILABLITY&& _data)
+void LoginProcessor::_CTL_RES_ID_AVAILABLITY(std::weak_ptr<Session> _session, CTL_RES_ID_AVAILABLITY&& _data)
 {
 	LTD_RES_ID_AVAILABLITY result;
 	result.m_ID = _data.m_ID;
@@ -130,7 +140,7 @@ void LoginProcessor::_CTL_RES_ID_AVAILABLITY(std::shared_ptr<Session> _session, 
 	return;
 }
 
-void LoginProcessor::_CTL_RES_SING_UP(std::shared_ptr<Session> _session, CTL_RES_SING_UP&& _data)
+void LoginProcessor::_CTL_RES_SING_UP(std::weak_ptr<Session> _session, CTL_RES_SING_UP&& _data)
 {
 	LTD_RES_CREATE_USER_DATA result;
 	result.m_ID = _data.m_ID;
@@ -153,6 +163,13 @@ void LoginProcessor::_DTL_ACK_LOGIN_DATA(DTL_ACK_LOGIN_DATA&& _data)
 		return;
 	}
 
+	auto session = itr->second.lock();
+	if (!session)
+	{
+		m_sessionMap.erase(itr);
+		return;
+	}
+
 	switch (_data.m_netError)
 	{
 		// 비밀 번호 확인
@@ -164,15 +181,19 @@ void LoginProcessor::_DTL_ACK_LOGIN_DATA(DTL_ACK_LOGIN_DATA&& _data)
 		{
 			result.m_isSuccess = false;
 			result.m_netError = NET_ERROR::PW_NOT_MATCH;
-			itr->second->SendPacket(result);
+			session->SendPacket(result);
+			m_sessionMap.erase(itr);
 			return;
 		}
 
 		result.m_isSuccess = true;
 		result.m_netError = NET_ERROR::NET_OK;
-		itr->second->SendPacket(result);
+		result.m_gameServerIP = m_gameServerIP;
+		result.m_gameserverPort = m_gameServerPort;
+		session->SendPacket(result);
 
 		// 세션 연결끊기
+		m_sessionMap.erase(itr);
 
 		break;
 	}
@@ -180,7 +201,7 @@ void LoginProcessor::_DTL_ACK_LOGIN_DATA(DTL_ACK_LOGIN_DATA&& _data)
 	{
 		result.m_isSuccess = false;
 		result.m_netError = _data.m_netError;
-		itr->second->SendPacket(result);
+		session->SendPacket(result);
 
 		break;
 	}
@@ -198,20 +219,31 @@ void LoginProcessor::_DTL_ACK_ID_AVAILABLITY(DTL_ACK_ID_AVAILABLITY&& _data)
 		return;
 	}
 
+	auto session = itr->second.lock();
+	if (!session)
+	{
+		m_sessionMap.erase(itr);
+		return;
+	}
+
 	switch (_data.m_netError)
 	{
 	case NET_ERROR::NET_OK:
 	{
 		result.m_netError = _data.m_netError;
 		result.m_isExist = _data.m_isExist;
-		itr->second->SendPacket(result);
+		session->SendPacket(result);
+		m_sessionMap.erase(itr);
+
 		break;
 	}
 	default:
 	{
 		result.m_netError = _data.m_netError;
 		result.m_isExist = false;
-		itr->second->SendPacket(result);
+		session->SendPacket(result);
+		m_sessionMap.erase(itr);
+
 		break;
 	}
 	}
@@ -228,6 +260,14 @@ void LoginProcessor::_DTL_ACK_CREATE_USER_DATA(DTL_ACK_CREATE_USER_DATA&& _data)
 		return;
 	}
 
+	auto session = itr->second.lock();
+	if (!session)
+	{
+		m_sessionMap.erase(itr);
+		return;
+	}
+
 	result.m_netError = _data.m_netError;
-	itr->second->SendPacket(result);
+	session->SendPacket(result);
+	m_sessionMap.erase(itr);
 }

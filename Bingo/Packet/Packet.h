@@ -19,12 +19,23 @@ constexpr uint32_t HashPacketName(const char* str)
 	NET_ERROR m_netError = NET_ERROR::NET_OK;
 
 // ========================================================================
+#define BROADCAST_CLIENT_PACKET(PacketName) \
+case PacketName::PACKET_ID: \
+{ \
+do { \
+		PacketName* ackData = new PacketName(); \
+		m_reader.SetBuffer(packet, sizeof(PacketHeader)); \
+		Deserialize(m_reader, *ackData); \
+		m_dialog->PostMessage(CM_ ## PacketName, (WPARAM)ackData); \
+} while (0); \
+break; \
+} 
+
 
 #define DESERIALIZE_DB_RES_PACKET(PacketName, DATA) \
 case PacketName::PACKET_ID: \
 { \
 do { \
-	\
 		PacketName packetData; \
 		m_reader.SetBuffer(DATA, sizeof(PacketHeader)); \
 		Deserialize(m_reader, packetData); \
@@ -37,7 +48,6 @@ break; \
 case PacketName::PACKET_ID: \
 { \
 do { \
-	\
 		PacketName packetData; \
 		m_reader.SetBuffer(DATA, sizeof(PacketHeader)); \
 		Deserialize(m_reader, packetData); \
@@ -73,6 +83,12 @@ struct PacketHeader
 /// ACK : RES 패킷에 대한 답
 /// NONE : 단순히 보내기만 하는 패킷
 ///
+
+struct ATA_NONE_HEART_BEAT
+{
+	DECLARE_PACKET(ATA_NONE_HEART_BEAT)
+};
+
 struct LTD_RES_ACCESS
 {
 	DECLARE_PACKET(LTD_RES_ACCESS)
@@ -99,6 +115,8 @@ struct LTC_ACK_LOGIN
 {
 	DECLARE_PACKET(LTC_ACK_LOGIN)
 	bool m_isSuccess;
+	std::string m_gameServerIP;
+	short m_gameserverPort;
 };
 
 struct LTD_RES_LOGIN_DATA

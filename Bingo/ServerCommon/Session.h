@@ -16,19 +16,27 @@ class Session
 {
 public:
 	boost::asio::ip::tcp::socket m_socket;
+	boost::asio::io_context& m_ioContext;
 
 	PacketWriter m_writer;
 	std::vector<char> m_ringBuffer;
 	uint16_t m_writePos;
 
 	std::shared_ptr<IProcessor> m_processor;
-	
+	boost::asio::steady_timer m_timer;
+
 private:
 	std::queue<std::vector<char>> m_sendQ;
 	std::mutex m_sendQMutex;
  
+	bool m_isConnected;
+	int m_heartBeatTimer;
+	int m_MaxHearBeatTime;
+	std::mutex m_heartBeatMutex;
+
+
 public:
-	Session(boost::asio::ip::tcp::socket _socket, std::shared_ptr<IProcessor> _processor);
+	Session(boost::asio::ip::tcp::socket _socket, std::shared_ptr<IProcessor> _processor, boost::asio::io_context& _ioContext);
 	virtual ~Session();
 
 public:
@@ -43,8 +51,13 @@ public:
 
 	void SendPacket(std::vector<char> _buffer);
 
+	void RecvHeartBeat();
+
 private:
 	void RecvPacket();
 	void ProcessPacket();
 	void DoAsyncSend();
+	void HeartBeat();
+
+	void Disconnect();
 };

@@ -13,6 +13,7 @@ private:
 	boost::asio::ip::tcp::acceptor m_acceptor;
 
 	std::shared_ptr<IProcessor> m_processor;
+	boost::asio::steady_timer m_timer;
 
 public:
 	Server(short _port);
@@ -24,4 +25,5 @@ public:
 
 private:
 	void Accept();
+	void Tick();
 };

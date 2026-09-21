@@ -124,7 +124,12 @@ void DBProcessor::Init()
 	std::cout << "데이터베이스 연결 성공\n";
 }
 
-void DBProcessor::ConnectServer(std::shared_ptr<Server> _server)
+void DBProcessor::ConnectServer()
+{
+
+}
+
+void DBProcessor::Tick()
 {
 
 }

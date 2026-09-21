@@ -3,6 +3,7 @@
 Server::Server(short _port)
 	: m_ioContext()
 	, m_acceptor(m_ioContext, boost::asio::ip::tcp::endpoint(boost::asio::ip::tcp::v4(), _port))
+	, m_timer(m_ioContext, std::chrono::seconds(1))
 {
 	Accept();
 }
@@ -26,7 +27,7 @@ std::shared_ptr<Session> Server::ConnectServer(const std::string& _ip, short _po
 		return nullptr;
 	}
 
-	std::shared_ptr<Session> session = std::make_shared<Session>(std::move(socket), m_processor);
+	std::shared_ptr<Session> session = std::make_shared<Session>(std::move(socket), m_processor, m_ioContext);
 	session->Start();
 	return session;
 }
@@ -38,7 +39,7 @@ void Server::Accept()
 		{
 			if (!_ec)
 			{
-				std::shared_ptr<Session> session = std::make_shared<Session>(std::move(_socket), m_processor);
+				std::shared_ptr<Session> session = std::make_shared<Session>(std::move(_socket), m_processor, m_ioContext);
 				std::cout << "accept!" << std::endl;
 				session->Start();
 			}
@@ -47,6 +48,17 @@ void Server::Accept()
 				std::cout << "cannot accept client : " << _ec.message() << std::endl;
 			}
 			Accept();
+		}
+	);
+}
+
+void Server::Tick()
+{
+	m_timer.expires_after(std::chrono::seconds(1));
+
+	m_timer.async_wait([this](const boost::system::error_code& _ec)
+		{
+			m_processor->Tick();
 		}
 	);
 }

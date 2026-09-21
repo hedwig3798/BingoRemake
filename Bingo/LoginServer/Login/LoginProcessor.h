@@ -31,18 +31,21 @@ private:
 	std::shared_ptr<Session> m_gameSession;
 	std::shared_ptr<Session> m_dbSession;
 
-	std::unordered_map<uint32_t, std::shared_ptr<Session>> m_sessionMap;
+	std::unordered_map<uint32_t, std::weak_ptr<Session>> m_sessionMap;
 	static uint32_t m_requestID;
 
+	std::shared_ptr<Server> m_server;
+
 public:
-	LoginProcessor(LuaHelper* _luaHelper);
+	LoginProcessor(LuaHelper* _luaHelper, std::shared_ptr<Server> _server);
 	virtual ~LoginProcessor();
 
 public:
 	virtual bool Process() override;
 	virtual void AddMsg(std::shared_ptr<Session> _session, std::vector<char>&& _buffer) override;
 	virtual void Init() override;
-	virtual void ConnectServer(std::shared_ptr<Server> _server) override;
+	virtual void ConnectServer() override;
+	virtual void Tick() override;
 
 private:
 	std::string GetSaltedString(const std::string& _string, const std::string& _salt);
@@ -50,9 +53,9 @@ private:
 private:
 
 	/// 여기서 부터 패킷 처리 함수
-	void _CTL_RES_LOGIN(std::shared_ptr<Session> _session, CTL_RES_LOGIN&& _data);
-	void _CTL_RES_ID_AVAILABLITY(std::shared_ptr<Session> _session, CTL_RES_ID_AVAILABLITY&& _data);
-	void _CTL_RES_SING_UP(std::shared_ptr<Session> _session, CTL_RES_SING_UP&& _data);
+	void _CTL_RES_LOGIN(std::weak_ptr<Session> _session, CTL_RES_LOGIN&& _data);
+	void _CTL_RES_ID_AVAILABLITY(std::weak_ptr<Session> _session, CTL_RES_ID_AVAILABLITY&& _data);
+	void _CTL_RES_SING_UP(std::weak_ptr<Session> _session, CTL_RES_SING_UP&& _data);
 
 
 	void _DTL_ACK_LOGIN_DATA(DTL_ACK_LOGIN_DATA&& _data);

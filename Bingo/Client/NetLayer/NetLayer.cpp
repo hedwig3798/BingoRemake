@@ -254,34 +254,22 @@ void NetLayer::BroadcastPacket()
 			PacketHeader* header = reinterpret_cast<PacketHeader*>(packet.data());
 			switch (header->m_ID)
 			{
-			case LTC_ACK_LOGIN::PACKET_ID:
-			{
-				LTC_ACK_LOGIN* ackData = new LTC_ACK_LOGIN();
-				m_reader.SetBuffer(packet, sizeof(PacketHeader));
-				Deserialize(m_reader, *ackData);
-				m_dialog->PostMessage(CM_LTC_ACK_LOGIN, (WPARAM)ackData);
-				break;
-			}
-			case LTC_ACK_ID_AVAILABLITY::PACKET_ID:
-			{
-				LTC_ACK_ID_AVAILABLITY* ackData = new LTC_ACK_ID_AVAILABLITY();
-				m_reader.SetBuffer(packet, sizeof(PacketHeader));
-				Deserialize(m_reader, *ackData);
-				m_dialog->PostMessage(CM_LTC_ACK_ID_AVAILABLITY, (WPARAM)ackData);
-				break;
-			}
-			case LTC_ACK_SING_UP::PACKET_ID:
-			{
-				LTC_ACK_SING_UP* ackData = new LTC_ACK_SING_UP();
-				m_reader.SetBuffer(packet, sizeof(PacketHeader));
-				Deserialize(m_reader, *ackData);
-				m_dialog->PostMessage(CM_LTC_ACK_SING_UP, (WPARAM)ackData);
-				break;
-			}
+				BROADCAST_CLIENT_PACKET(LTC_ACK_LOGIN);
+				BROADCAST_CLIENT_PACKET(LTC_ACK_ID_AVAILABLITY);
+				BROADCAST_CLIENT_PACKET(LTC_ACK_SING_UP);
 			default:
 				break;
 			}
 		}
+	}
+}
+
+void NetLayer::Tick()
+{
+	while (false == m_endFlag)
+	{
+		Send(ATA_NONE_HEART_BEAT());
+		std::this_thread::sleep_for(std::chrono::seconds(1));
 	}
 }
 
